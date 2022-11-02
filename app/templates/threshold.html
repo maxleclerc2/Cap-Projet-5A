@@ -1,0 +1,623 @@
+{% extends "bootstrap/base.html" %}
+{% import "bootstrap/wtf.html" as wtf %}
+
+{% block title %}SSA{% endblock %}
+
+{% block head %}
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<script src="https://cesium.com/downloads/cesiumjs/releases/1.85/Build/Cesium/Cesium.js"></script>
+<link href="//cdnjs.cloudflare.com/ajax/libs/twitter-bootstrap/3.3.7/css/bootstrap.min.css" rel="stylesheet">
+<link href="https://cesium.com/downloads/cesiumjs/releases/1.85/Build/Cesium/Widgets/widgets.css" rel="stylesheet">
+<link rel="stylesheet" href="//use.fontawesome.com/releases/v5.0.7/css/all.css">
+<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/css/bootstrap.min.css" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/satellite.js/4.0.0/satellite.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.0.2/dist/js/bootstrap.bundle.min.js"></script>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='stylesheets/style.css') }}">
+
+{%if SatList[0].COMPLETED %}
+    {{ SatList[0].JS_RESSOURCES|indent(4)|safe }}
+    {{ SatList[0].CSS_RESSOURCES|indent(4)|safe }}
+    {{ SatList[0].JS_PLOTS|indent(4)|safe }}
+{% endif %}
+
+{% endblock %}
+
+{% block navbar %}
+<div class="navbar navbar-expand-sm navbar-dark bg-dark" role="navigation">
+    <div class="container">
+        <a href="/" class="nav-link" style="color: rgba(255,255,255); font-size: 18px;">SSA</a>
+        <button type="button" class="navbar-toggler" data-bs-toggle="collapse" data-bs-target="#navbarCollapse">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div id="navbarCollapse" class="navbar-collapse collapse">
+            <ul class="nav navbar-nav">
+                <li class="nav-item">
+                    <a href="/" class="nav-link">Home</a>
+                </li>
+                <li class="nav-item dropdown">
+                    <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">Space Intelligence</a>
+                    <div class="dropdown-menu">
+                        <a href="/threshold" class="dropdown-item">Maneuver detection</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="/ai" class="dropdown-item">Maneuver characterization</a>
+                    </div>
+                </li>
+                <li class="nav-item dropdown">
+                    <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">Space Traffic Management</a>
+                    <div class="dropdown-menu">
+                        <a href="/proximity" class="dropdown-item">Compare TLE</a>
+                    </div>
+                </li>
+                <li class="nav-item dropdown">
+                    <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">Space Weather</a>
+                    <div class="dropdown-menu">
+                        <a href="/space-weather" class="dropdown-item">Space Weather</a>
+                    </div>
+                </li>
+            </ul>
+        </div>
+    </div>
+</div>
+{% endblock %}
+
+{% block content %}
+<div class="stars"></div>
+<div class="twinkling"></div>
+<div class="clouds"></div>
+
+<header>
+    <h1>SpaceOpsServer</h1>
+    <h2>Maneuver detection</h2>
+</header>
+
+<section>
+    <div class="Globale">
+        <div class="accordion-wrapper">
+            {% if SatList[0].COMPLETED %}
+                {% for i in range(nb_sat) %}
+                    {% if SatList[i].MESSAGES %}
+                        {% for mess in range(SatList[i].NB_MESSAGES) %}
+                            <h2>{{ SatList[i].MESSAGES[mess] }}</h2>
+                        {% endfor %}
+                    {% endif %}
+                {% endfor %}
+
+                <div class="accordion">
+
+                    <input class="accordion-input" type="checkbox" name="checkbox-a" id="checkResult" onClick="showForm('checkResult', 'resultFields')" checked>
+                    <label class="accordion-label" for="checkResult">Results for {{ SatList[0].NAME }}</label>
+                    <div class="accordion-content resultFields" id="resultFields" style="display: block;">
+                        
+                        {% if SatList[0].VISU == 'yes' %}
+                            <h2>3D Visualization</h2>
+                            <br>
+                            <div id="container"> 
+                                <div id="cesiumContainer" style="height: 600px;"></div>
+                                <div id="toolbar">
+                                    <select id="cameraOption" class="cesium-button cesium-button-toolbar" onchange="cameraOption(this.options[this.selectedIndex].value);">
+                                        <option selected="selected" value="">Camera option</option>
+                                        <option value="1" >IRCF</option>
+                                        <!--<option value="0" >Basic</option>-->
+                                    </select>
+
+                                    <select id="lightOption" class="cesium-button cesium-button-toolbar" onchange="lightOption(this.options[this.selectedIndex].value);">
+                                        <option selected="selected" value="">Shadow option</option>
+                                        <option value="1" >On</option>
+                                        <option value="0" >Off</option>
+                                    </select>
+
+                                    
+                                    <select id="selectAddForm" class="cesium-button cesium-button-toolbar">
+                                        <option selected="selected">Satellites displayed</option>
+                                        {% for i in range(nb_sat) %}
+                                            {% if SatList[i].COMPLETED %}
+                                                <option 
+                                                    {% if i == (nb_sat - 1) %}
+                                                        selected="selected"
+                                                    {% endif %}
+                                                >{{ SatList[i].NAME }}</option>
+                                            {% endif %}
+                                        {% endfor %}
+                                    </select>
+                                </div>
+                            </div>
+                            <script>
+
+                                Cesium.Ion.defaultAccessToken = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJqdGkiOiJlZmZjMjg0Mi1iMTYwLTQ3Y2MtYWZkMS04Y2YxZGFlYzFiMGQiLCJpZCI6Njg2MjEsImlhdCI6MTYzMjc0Mjg1OX0.RK68HEi6jXF7SYuyzw38jFOOkLwJKKiincUxaQm50gw';
+
+                                function icrf(scene, time) {
+                                if (scene.mode !== Cesium.SceneMode.SCENE3D) {
+                                    return;
+                                }
+
+                                var icrfToFixed = Cesium.Transforms.computeIcrfToFixedMatrix(time);
+                                if (Cesium.defined(icrfToFixed)) {
+                                    var camera = viewer.camera;
+                                    var offset = Cesium.Cartesian3.clone(camera.position);
+                                    var transform = Cesium.Matrix4.fromRotationTranslation(icrfToFixed);
+                                    camera.lookAtTransform(transform, offset);
+                                }
+                                }
+
+                                function viewInIrcf(){
+                                    scene.postUpdate.addEventListener(icrf);
+                                }
+
+                                function setReferenceFrame() {
+                                var center = Cesium.Cartesian3.fromDegrees(-75.59777, 40.03883);
+                                var transform = Cesium.Transforms.eastNorthUpToFixedFrame(center);
+
+                                // View in east-north-up frame
+                                var camera = viewer.camera;
+                                camera.constrainedAxis = Cesium.Cartesian3.UNIT_Z;
+                                camera.lookAtTransform(
+                                    transform,
+                                    new Cesium.Cartesian3(-120000.0, -120000.0, 120000.0)
+                                );
+                                }
+
+                                function cameraOption(value){
+                                    if(value == "1")
+                                        viewInIrcf();
+                                    else if (value == "0")
+                                        setReferenceFrame();
+                                }
+
+                                function lightOption(value){
+                                    if(value == "1")
+                                        scene.globe.enableLighting = true;
+                                    else if (value == "0")
+                                        scene.globe.enableLighting = false;
+                                }
+        
+                                //initialize the clock
+                                var clock = new Cesium.Clock({
+                                startTime : Cesium.JulianDate.fromIso8601('{{SatList[0].DATE_BEGIN}}'),
+                                //currentTime : Cesium.JulianDate.fromIso8601('{{SatList[0].DATE_BEGIN}}'),
+                                stopTime : Cesium.JulianDate.fromIso8601('{{SatList[0].DATE_END}}'),
+                                //clockRange : Cesium.ClockRange.LOOP_STOP,
+                                //clockStep : Cesium.ClockStep.SYSTEM_CLOCK_MULTIPLIER
+                                });
+                                const totalSeconds = 60 * 60 * 2;
+                                const start = Cesium.JulianDate.fromIso8601('{{SatList[0].DATE_BEGIN}}');
+                                const stop = Cesium.JulianDate.addSeconds(start, totalSeconds, new Cesium.JulianDate());
+
+                                //var czmlData = new Cesium.DataSourceCollection();
+
+                                // Initialise le Cesium viewer.
+                                const viewer = new Cesium.Viewer('cesiumContainer', {
+                                terrainProvider: Cesium.createWorldTerrain(),
+                                clockViewModel: new Cesium.ClockViewModel(clock),
+                                //automaticallyTrackDataSourceClocks: false,
+                                }); 
+                                var scene = viewer.scene;
+
+                                // Clear scene and set default view.
+                                var handler;
+                                var tileset;
+                                function resetScene() {
+                                viewer.trackedEntity = undefined;
+                                viewer.dataSources.removeAll();
+                                viewer.entities.removeAll();
+                                viewer.scene.primitives.remove(tileset);
+                                viewer.clock.shouldAnimate = false;
+                                handler = handler && handler.destroy();
+                                scene.skyBox.show = true;
+                                scene.camera.flyHome(0.0);
+                                scene.requestRender();
+                                }
+
+                                //Viewer options 
+                                viewer.timeline.zoomTo(start, stop);
+                                lightOption();
+
+                                //Load satellite orbite
+                                function loadCzmlScenario() {
+                                resetScene();
+                                viewer.dataSources.add(
+                                    Cesium.CzmlDataSource.load("../static/czml/threshold/sat.czml")
+                                );
+                                viewer.clock.shouldAnimate = true;
+                                }
+
+                                loadCzmlScenario();
+                                viewer.camera.zoomOut(100000000);
+                                
+                            </script>
+                        {% endif %}
+
+                        <div class="ResultLeft">
+                            <h2>General information</h2>
+                            <p><b>Satellite name:</b> {{ SatList[0].NAME }}</p>
+                            <p><b>NORAD ID:</b> {{ SatList[0].ID }}</p>
+                            <p><b>Classification:</b> {{ SatList[0].CLASSIFICATION }}</p>
+                            <p><b>Orbit type:</b> {{ SatList[0].ORBIT }}</p>
+                            <p><b>Object class:</b> {{ SatList[0].OBJECT_CLASS }}</p>
+                            <p><b>Launch date:</b> {{ SatList[0].LAUNCH_DATE }}</p>
+                            <p><b>Launch site:</b></p>
+                            <p>{{ SatList[0].LAUNCH_SITE }}</p>
+                            <p><b>Initial mass:</b> {{ SatList[0].MASS }} </p>
+                            <p><b>Dimension:</b></p>
+                            <p>{{ SatList[0].DIMENSION }}</p>
+                            <p><b>Data recovery dates:</b></p>
+                            <p>{{ SatList[0].DATE_BEGIN }} to {{ SatList[0].DATE_END }}</p>
+                        </div>
+
+                        <div class="ResultRight">
+                            <br>
+                            <div class="accordion">
+                                <input class="accordion-input" type="checkbox" name="checkbox-a" id="checkForm" onClick="showForm('checkForm', 'formAddSat')">
+                                <label class="accordion-label" for="checkForm">Add a satellite for comparison</label>
+                                <div class="accordion-content resultFields" id="formAddSat">
+                                    <div class="LeftForm">
+                                        <form action="" method="POST" role="formAddSat">
+                                            <div class="form-group">
+                                                {{ formAddSat.hidden_tag() }} {{ wtf.form_errors(formAddSat, hiddens="only") }}
+                                                <div class="form-wrapper">
+                                                    <label for="SatNameAdd">New satellite's name for comparison:</label>
+                                                    {{ formAddSat.SatNameAdd(class="form-control", id="SatNameAdd", required="required", type="text", value="", placeholder="Name of the new satellite") }}
+                                                </div>
+                                            </div>
+                                            {{ formAddSat.submit(class="btn btn-add") }}
+                                        </form>
+                                    </div>
+                                    <div class="RightForm" style="vertical-align: top;">
+                                            <h4>Satellites already searched:</h4>
+                                            {% for i in range(nb_sat) %}
+                                                {% if SatList[i].COMPLETED %}
+                                                    <p>{{ SatList[i].NAME }}</p>
+                                                    {% if i == (nb_sat - 1) and i != 0 %}
+                                                        <br>
+                                                        <h4>Sattelite added:</h4>
+                                                        <p style="color: red;">{{ SatList[i].NAME }}</p>
+                                                    {% endif %}
+                                                {% endif %}
+                                            {% endfor %}
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion">
+                                <input class="accordion-input" type="checkbox" name="checkbox-a" id="checkEphe" onClick="showForm('checkEphe', 'epheFields')">
+                                <label class="accordion-label" for="checkEphe">Ephemerides of the satellite</label>
+                                <div class="accordion-content resultFields" id="epheFields">
+                                    <table>
+                                        <tr>
+                                            <th>Date (YYYY-MM-DD HH:MM:SS)</th>
+                                            <th>SMA (km)</th>
+                                            <th>ECC</th>
+                                            <th>I (deg)</th>
+                                            <th>ARGP (deg)</th>
+                                            <th>RAAN (deg)</th>
+                                            <th>Mean anomaly (deg)</th>
+                                        </tr>
+                                        {% for i in range(SatList[0].NB_DATE) %}
+                                            <tr>
+                                                <th>{{ SatList[0].DATE_TLE[i].strftime('%Y-%m-%d %H:%M:%S') }}</th>
+                                                <th>{{ '%0.4f' % SatList[0].SMA[i] | float }}</th>
+                                                <th>{{ SatList[0].ECC[i] }}</th>
+                                                <th>{{ SatList[0].INCLINATION[i] }}</th>
+                                                <th>{{ SatList[0].ARGP[i] }}</th>
+                                                <th>{{ SatList[0].RAAN[i] }}</th>
+                                                <th>{{ SatList[0].MEAN_ANOMALY[i] }}</th>
+                                            </tr>
+                                        {% endfor %}
+                                    </table>
+                                </div>
+                            </div>
+                            <div class="accordion">
+                                <input class="accordion-input" type="checkbox" name="checkbox-a" id="checkPlot" onClick="showForm('checkPlot', 'plotFields')">
+                                <label class="accordion-label" for="checkPlot">History of orbital parameters</label>
+                                <div class="accordion-content resultFields" id="plotFields">
+                                    {% if nb_sat > 3 %}
+                                        <h2>The number of satellites ploted is limited to 3. Please make a new research with less satellites.</h2>
+                                        </br>
+                                    {% endif %}
+                                    <h3>SMA (Km)</h3>
+                                    <div style="display: flex; justify-content: center;">
+                                        {{ SatList[0].DIV_SMA|indent(4)|safe }}
+                                    </div>
+                                    </br>
+                                    <h3>Inclination (deg)</h3>
+                                    <div style="display: flex; justify-content: center;">
+                                        {{ SatList[0].DIV_I|indent(4)|safe }}
+                                    </div>
+                                    </br>
+                                    <h3>Eccentricity</h3>
+                                    <div style="display: flex; justify-content: center;">
+                                        {{ SatList[0].DIV_ECC|indent(4)|safe }}
+                                    </div>
+                                    </br>
+                                    <h3>ARGP (deg)</h3>
+                                    <div style="display: flex; justify-content: center;">
+                                        {{ SatList[0].DIV_ARGP|indent(4)|safe }}
+                                    </div>
+                                    </br>
+                                    <h3>RAAN (deg)</h3>
+                                    <div style="display: flex; justify-content: center;">
+                                        {{ SatList[0].DIV_RAAN|indent(4)|safe }}
+                                    </div>
+                                    </br>
+                                    <h3>Mean Anomaly (deg)</h3>
+                                    <div style="display: flex; justify-content: center;">
+                                        {{ SatList[0].DIV_MA|indent(4)|safe }}
+                                    </div>
+                                    </br>
+                                    <h3>Longitude (deg)</h3>
+                                    <div style="display: flex; justify-content: center;">
+                                        {{ SatList[0].DIV_LONGITUDE|indent(4)|safe }}
+                                    </div>
+                                    <br>
+                                    <br>
+                                    <div class="BoutonMilieu">
+                                        <a href="/export&threshold-parameters" class="btn btn-add">Download orbital parameters plots</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion">
+                                <input class="accordion-input" type="checkbox" name="checkbox-a" id="checkMahalanobis" onClick="showForm('checkMahalanobis', 'plotMahalanobis')">
+                                <label class="accordion-label" for="checkMahalanobis">Mahalanobis distance</label>
+                                <div class="accordion-content resultFields" id="plotMahalanobis">
+                                    <h3>Inclination & SMA</h3>
+                                    <img src="{{ url_for('static', filename='images/mahalanobis/threshold/mahalanobis_inc_sma.jpg') }}">
+                                    </br>
+                                    </br>
+                                    <h3>Inclination & Longitude</h3>
+                                    <img src="{{ url_for('static', filename='images/mahalanobis/threshold/mahalanobis_lon_inc.jpg') }}">
+                                    <br>
+                                    <br>
+                                    <div class="BoutonMilieu">
+                                        <a href="/export&threshold-mahalanobis" class="btn btn-add">Download Mahalanobis plots</a>
+                                    </div>
+                                </div>
+                            </div>
+                            <div class="accordion">
+                                <input class="accordion-input" type="checkbox" name="checkbox-a" id="checkMan" onClick="showForm('checkMan', 'manFields')">
+                                <label class="accordion-label" for="checkMan">History of maneuvers</label>
+                                <div class="accordion-content resultFields" id="manFields">
+                                    <h3>Energy (J/Kg)</h3>
+                                    <div style="display: flex; justify-content: center;">
+                                        {{ SatList[0].DIV_ENERGY|indent(4)|safe }}
+                                    </div>
+                                    </br>
+                                    <h3>Delta Energy (J/Kg)</h3>
+                                    <div style="display: flex; justify-content: center;">
+                                        {{ SatList[0].DIV_DELTA_ENERGY|indent(4)|safe }}
+                                    </div>
+                                    <br>
+                                    {% if not SatList[0].DATE_MANEUVER %}
+                                        <p>No maneuver detected over the period indicated with this threshold.</p>
+                                    {% else %}
+                                        <p>Number of maneuvers detected: {{ SatList[0].NB_MANEUVER }}</p>
+                                        <br>
+                                        <table style="display: inline;">
+                                            <tr>
+                                                <th>N° maneuver</th>
+                                                <th>Date of maneuvers</th>
+                                                <th>Delta V (m/s)</th>
+                                                <th>Delta M (Kg)</th>
+                                            </tr>
+                                            {% for i in range(SatList[0].NB_MANEUVER) %}
+                                                <tr>
+                                                    <th>{{ i + 1 }}</th>
+                                                    <th>{{ SatList[0].DATE_MANEUVER[i].strftime('%Y-%m-%d %H:%M:%S') }}</th>
+                                                    <th>{{ '%0.4f' % SatList[0].Delta_V[i] | float }}</th>
+                                                    <th>{{ '%0.4f' % SatList[0].Delta_M[i] | float }}</th>
+                                                </tr>
+                                            {% endfor %}
+                                        </table>
+                                        <br>
+                                        <br>
+                                        <table style="display: inline;">
+                                        <p>Summary of maneuvers detected between: {{SatList[0].DATE_BEGIN}} and {{SatList[0].DATE_END}}</p>
+                                            <tr>
+                                                <th>Total delta V (m/s)</th>
+                                                <th>{{ '%0.4f' % SatList[0].Somme_Delta_V | float }}</th>
+                                            </tr>
+                                            <tr>
+                                                <th>Total delta M (Kg)</th>
+                                                <th>{{ '%0.4f' % SatList[0].Somme_Delta_M | float }}</th>
+                                            </tr>
+                                            <tr>
+                                                <th>Mass at {{SatList[0].DATE_BEGIN}} (Kg)</th>
+                                                <th>{{ '%0.4f' % SatList[0].MASS_BEGIN | float }}</th>
+                                            </tr>
+                                            <tr>
+                                                <th>Mass at {{SatList[0].DATE_END}} (Kg)</th>
+                                                <th>{{ '%0.4f' % SatList[0].MASS_END | float }}</th>
+                                            </tr>
+                                        </table>
+                                    {% endif %}
+                                    <br>
+                                    <br>
+                                    <div class="BoutonMilieu">
+                                        <a href="/export&threshold-maneuver" class="btn btn-add">Download maneuvers results</a>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                        
+                    </div>
+                </div>
+            {% endif %}
+            
+            <div class="accordion">
+                <input class="accordion-input" type="checkbox" name="checkbox-a" id="checkSearch" onClick="showForm('checkSearch', 'searchFields')">
+                <label class="accordion-label" for="checkSearch">Search a satellite</label>
+                <div class="accordion-content searchFields" id="searchFields">
+                    <div class="accordion">
+                        <input class="accordion-input" type="checkbox" name="checkbox-a" id="checkSat" onClick="showForm('checkSat', 'formSat')">
+                        <label class="accordion-label" for="checkSat">Online</label>
+                        <div class="accordion-content">
+                            <form action="" method="POST" role="formSat" class="form" id="formSat">
+                                <div class="OnlineSearch">
+                                    <div class="LeftForm">
+                                        <div class="form-group">
+                                            {{ formSat.hidden_tag() }} {{ wtf.form_errors(formSat, hiddens="only") }}
+                                            <div class="form-wrapper">
+                                                <label for="SatName">Satellite name:</label>
+                                                {{ formSat.SatName(class="form-control", id="SatName", required="required", type="text", value="", placeholder="Name of the satellite") }}
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <div class="form-wrapper">
+                                                <label for="SatName2">Second satellite's name for orbit comparison:</label>
+                                                {{ formSat.SatName2(class="form-control", id="SatName2", type="text", value="", placeholder="Name of the second satellite (optionnal)") }}
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <div class="form-wrapper">
+                                                <label for="DateBegin">Data start date:</label>
+                                                {{ formSat.DateBegin(class="form-control", id="DateBegin", required="required", type="text", value="", placeholder="Data start date (YYYY-MM-DD)") }}
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <div class="form-wrapper">
+                                                <label for="DateEnd">Data end date:</label>
+                                                {{ formSat.DateEnd(class="form-control", id="DateEnd", required="required", type="text", value="", placeholder="Data end date (YYYY-MM-DD)") }}
+                                            </div>
+                                        </div>
+                                    </div>
+
+                                    <div class="RightForm">
+                                        <label>Display orbit the visualization:</label>
+                                        <br>
+                                        <div class="wrapper-radio">
+                                            {% for subfield in formSat.Visu %}
+                                                {{ subfield }}
+                                            {% endfor %}
+                                            <label for="Visu-0" class="option Visu-0">
+                                            <div class="dot"></div>
+                                                <span>Yes</span>
+                                                </label>
+                                            <label for="Visu-1" class="option Visu-1">
+                                            <div class="dot"></div>
+                                                <span>No</span>
+                                            </label>
+                                        </div>
+                                        <br>
+                                        <br>
+                                        <label>Limit of maneuver detection:</label>
+                                        <br>
+                                        <div class="wrapper-radio">
+                                            {% for subfield in formSat.Seuil %}
+                                                {{ subfield(onClick="showSigma()") }}
+                                            {% endfor %}
+                                            <label for="Seuil-0" class="option Seuil-0">
+                                            <div class="dot"></div>
+                                                <span>Manual</span>
+                                                </label>
+                                            <label for="Seuil-1" class="option Seuil-1">
+                                            <div class="dot"></div>
+                                                <span>Automatic</span>
+                                            </label>
+                                        </div>
+                                        <br>
+                                        <br class="SeuilHidden">
+                                        <div class="form-group SeuilHidden" id="manualValue">
+                                            <br>
+                                            <div class="form-wrapper">
+                                                <label for="SeuilVal">Limit value in J/Kg:</label>
+                                                {{ formSat.ManualVal(class="form-control-value", id="ManualVal", required="required", type="text", value="10") }}
+                                            </div>
+                                        </div>
+                                        <div class="form-group">
+                                            <div class="form-wrapper" id="selectSigma">
+                                                <br>
+                                                <label for="AutoVal">Value of sigma:</label>
+                                                <select class="form-control-value" id="AutoVal" name="AutoVal" required="">
+                                                    {% for subfield in formSat.AutoVal %}
+                                                        {{ subfield }}
+                                                    {% endfor %}
+                                                </select>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+                                <br>
+
+                                {{ formSat.submit(class="btn btn-add") }}
+                            </form>
+                        </div>
+                    </div>
+                    
+                    <div class="accordion">
+                        <input class="accordion-input" type="checkbox" name="checkbox-a" id="formFile" onClick="showForm('formFile', 'uploader')">
+                        <label class="accordion-label" for="formFile">From a file</label>
+                        <div class="accordion-content">
+                            <form action="" method="POST" role="formFile" class="uploader" enctype="multipart/form-data" id="uploader">
+                                {{ formFile.hidden_tag() }} {{ wtf.form_errors(formFile, hiddens="only") }}
+                                {{ formFile.fileUpload(id="file-upload", accept=".txt") }}
+
+                                <label class="label-uploader" for="file-upload" id="file-drag">
+                                    <img id="file-upload" src="#" alt="Preview" class="hidden">
+                                    <div id="start">
+                                        <i class="fa fa-download" aria-hidden="true"></i>
+                                        <div>Upload a file or drop it here</div>
+                                        <div id="notimage" class="hidden">Please select a valid file</div>
+                                        <span id="file-upload-btn" class="btn btn-primary">Upload file</span>
+                                    </div>
+                                    <div id="response" class="hidden">
+                                        <div id="messages"></div>
+                                        <progress class="progress" id="file-progress" value="0">
+                                            <span>0</span>%
+                                        </progress>
+                                    </div>
+                                </label>
+                                
+                                <br>
+                                <label>Limit of maneuver detection:</label>
+                                <br>
+                                <div class="wrapper-radio">
+                                    {% for subfield in formFile.SeuilBis %}
+                                        {{ subfield(onClick="showSigmaBis()") }}
+                                    {% endfor %}
+                                    <label for="SeuilBis-0" class="option SeuilBis-0">
+                                    <div class="dot"></div>
+                                        <span>Manual</span>
+                                        </label>
+                                    <label for="SeuilBis-1" class="option SeuilBis-1">
+                                    <div class="dot"></div>
+                                        <span>Automatic</span>
+                                    </label>
+                                </div>
+                                <br>
+                                <br class="SeuilHidden">
+                                <div class="form-group SeuilHidden" id="manualValueBis">
+                                    <br>
+                                    <div class="form-wrapper">
+                                        <label for="SeuilValBis">Limit value in J/Kg:</label>
+                                        {{ formFile.ManualValBis(class="form-control-value", id="ManualValBis", required="required", type="text", value="10") }}
+                                    </div>
+                                </div>
+                                <div class="form-group">
+                                    <div class="form-wrapper" id="selectSigmaBis">
+                                        <br>
+                                        <label for="AutoValBis">Value of sigma:</label>
+                                        <select class="form-control-value" id="AutoValBis" name="AutoValBis" required="">
+                                            {% for subfield in formFile.AutoValBis %}
+                                                {{ subfield }}
+                                            {% endfor %}
+                                        </select>
+                                    </div>
+                                </div>
+                                <br>
+                                {{ formFile.submit(class="btn btn-add") }}
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <footer>
+        <img src="{{ url_for('static', filename='logo.png') }}" style="height: 100px;">
+    </footer>
+</section>
+
+<link rel="stylesheet" href="{{ url_for('static', filename='stylesheets/jquery.datetimepicker.css') }}">
+<script src="{{ url_for('static', filename='js/jquery.js') }}"></script>
+<script src="{{ url_for('static', filename='js/jquery.datetimepicker.full.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/script.js') }}"></script>
+
+{% endblock %}

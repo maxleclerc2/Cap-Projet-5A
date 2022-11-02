@@ -1,0 +1,5 @@
+SENTINEL 3B::ST
+Sentinel-3B::DW
+SENTINEL 3A::ST
+Sentinel-3A::DW
+ATHENA-FIDUS::DW

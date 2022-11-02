@@ -1,0 +1,28 @@
+# Environnement virtuel
+ssa-venv
+
+# Inutiles
+**/__pycache__
+ssa.log
+app/uploads/*.txt
+app/export/**/SatInfo.txt
+app/export/**/maneuvers.txt
+app/static/czml/**/*.czml
+app/static/images/**/*.jpg
+app/static/images/**/*.html
+
+# MacOS
+**/.DS_Store
+
+# IntelliJ
+.idea/
+
+# Tâches à faire avant de rendre un livrable (vous en avez pas besoin)
+launch.bat
+TODO AVANT RENDU.txt
+app/FileDownloader.py
+app/SpaceWeather.py
+app/proximity.py
+app/routes-BACKUP.py
+app/templates/space-weather-dashboard.html
+app/templates/proximity.html
