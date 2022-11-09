@@ -1,6 +1,7 @@
 from flask import Flask
 from flask_caching import Cache
 from flask_bootstrap import Bootstrap
+from flask_cors import CORS
 import logging
 
 
@@ -15,6 +16,7 @@ def init_app():
     logging.info('Started SSA Web App Prototype')
 
     app = Flask(__name__, instance_relative_config=False)
+    CORS(app)
     app.config.from_pyfile("config.py")
 
     bootstrap = Bootstrap(app)

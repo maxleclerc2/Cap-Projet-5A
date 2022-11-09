@@ -1,14 +1,20 @@
 # Environnement virtuel
 ssa-venv
+test
 
 # Inutiles
 **/__pycache__
 ssa.log
 app/uploads/*.txt
+app/uploads/*.jpg
+app/uploads/*.jpeg
+app/uploads/*.png
+app/uploads/*.tiff
 app/export/**/SatInfo.txt
 app/export/**/maneuvers.txt
 app/static/czml/**/*.czml
 app/static/images/**/*.jpg
+app/static/images/**/*.png
 app/static/images/**/*.html
 
 # MacOS
@@ -26,3 +32,4 @@ app/proximity.py
 app/routes-BACKUP.py
 app/templates/space-weather-dashboard.html
 app/templates/proximity.html
+/dev/perso/

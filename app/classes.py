@@ -96,6 +96,12 @@ class ProximityForm(FlaskForm):
     submit = SubmitField('Submit')
 
 
+# AI 'new search' form
+class TESTProcessForm(FlaskForm):
+    fileUpload = FileField('File')
+    submit = SubmitField('Submit')
+
+
 class Date_Values:
     def __init__(self, k, month, day, hour, minute, SEC):
         self.k=k

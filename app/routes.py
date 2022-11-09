@@ -7,7 +7,7 @@ Each route defines the main logic of the app:
 """
 
 from flask import (request, render_template, send_file, abort,
-                   send_from_directory)
+                   send_from_directory, jsonify)
 from flask import current_app as app
 from werkzeug.utils import secure_filename
 
@@ -18,8 +18,11 @@ from io import BytesIO
 import logging
 
 from .api import TestAPI, GetSatInfoDW, GetSatInfoST
-from .classes import SatForm, AddSatForm, SatFile, AIForm, ProximityForm, SatClass
+from .astrometry import SubmitAstrometry
+from .classes import SatForm, AddSatForm, SatFile, AIForm, ProximityForm, SatClass, TESTProcessForm
 from .functions import GetSatInfoFile, czml, create_plot_list
+from .op_progress import Progress
+from .remover import RemoveGreenStars
 from .threshold import GetTleInfo
 from .ai import GetSatInfoAI, GetPredAI, GetManeuversAI, PreparePlotsAI
 # TODO from .proximity import GetTleProximity, DetectProximity
@@ -47,6 +50,8 @@ ai_nb_sat = 0
 ai_SatNames = []
 ai_to_remove = False
 Prediction = None
+# Optical Processing progress
+global progress
 
 
 # -----------------------------------------------------------------------------
@@ -803,6 +808,67 @@ def export(request):
             logging.error('Download - Tried to download %s', request)
             return render_template('error.html', errorMessage="No file to download with this link")
     return send_file(data, mimetype=fileType, as_attachment=True, attachment_filename=fileName)        
+
+
+# Space image processing
+@app.route('/image-processing', methods=['GET', 'POST'])
+def image_processing():
+    # Create the form
+    formProcessTEST = TESTProcessForm()
+
+    return render_template('image_processing.html', formProcessTEST=formProcessTEST)
+
+
+@app.route('/test-processing-submit', methods=['POST'])
+def test_processing_submit():
+    global progress
+    logging.info('OPTICAL PROCESSING - Request received')
+    progress = Progress()
+
+    # Saving the uploaded file
+    uploaded_file = request.files['fileUpload']
+    filename = secure_filename(uploaded_file.filename)
+    if filename != '':
+        file_ext = splitext(filename)[1]
+        if file_ext not in app.config['UPLOAD_EXTENSIONS']:
+            progress.setStatus("error")
+            abort(400)
+        progress.setStatus("file saved")
+        uploaded_file.save(join(app.config['UPLOAD_PATH'], filename))
+        logging.info('OPTICAL PROCESSING - Images saved as ' + filename)
+    else:
+        progress.setStatus("error")
+        logging.info('OPTICAL PROCESSING - Unable to save image ' + filename)
+        return jsonify({"response": "pas ok"})
+
+    try:
+        folderId = SubmitAstrometry(filename, progress)
+    except Exception as e:
+        print(e)
+        progress.setStatus("error")
+        logging.info('OPTICAL PROCESSING - Error with astrometry.net')
+        return jsonify({"response": "pas ok :("})
+
+    if folderId.__eq__("error"):
+        logging.info('OPTICAL PROCESSING - Error while processing the image ' + filename + ' with astrometry.net')
+        return jsonify({"response": "pas ok :("})
+
+    result = RemoveGreenStars(folderId)
+    if result.__eq__("nok"):
+        progress.setStatus("error")
+        logging.info('OPTICAL PROCESSING - Error while creating the mask for the image ' + filename)
+        return jsonify({"response": "pas ok :("})
+
+    progress.setStatus("success")
+    return jsonify({"response": "ok", "jobId": folderId})
+
+
+# Check the optical processing progress
+@app.route('/check-progress')
+def check_progress():
+    global progress
+    status = progress.getStatus()
+    return jsonify({"status": status})
 
 
 # Space weather

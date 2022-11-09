@@ -205,7 +205,7 @@ img {
 }
 
 .Column {
-  margin: 0 5%;
+  margin: 0 1%;
   display: inline-flex;
   flex-direction: column;
   vertical-align: top;

@@ -5,19 +5,16 @@
 
 from __future__ import print_function
 import os
+import urllib.request
+
 import sys
 import time
 import base64
 
-try:
-    # py3
-    from urllib.parse import urlencode, quote
-    from urllib.request import urlopen, Request
-    from urllib.error import HTTPError
-except ImportError:
-    # py2
-    from urllib import urlencode, quote
-    from urllib2 import urlopen, Request, HTTPError
+from urllib.parse import urlencode, quote
+from urllib.request import urlopen, Request
+from urllib.error import HTTPError
+from flask import current_app as app
 
 # from exceptions import Exception
 from email.mime.base import MIMEBase
@@ -27,6 +24,10 @@ from email.mime.application import MIMEApplication
 from email.encoders import encode_noop
 
 import json
+
+
+# TODO API Key
+API_KEY = "qilocyqjwjchhdhq"
 
 
 def json2python(data):
@@ -66,11 +67,11 @@ class Client(object):
         '''
         if self.session is not None:
             args.update({'session': self.session})
-        print('Python:', args)
+        #print('Python:', args)
         json = python2json(args)
-        print('Sending json:', json)
+        #print('Sending json:', json)
         url = self.get_url(service)
-        print('Sending to URL:', url)
+        #print('Sending to URL:', url)
 
         # If we're sending a file, format a multipart/form-data
         if file_args is not None:
@@ -98,38 +99,36 @@ class Client(object):
         else:
             # Else send x-www-form-encoded
             data = {'request-json': json}
-            print('Sending form data:', data)
+            #print('Sending form data:', data)
             data = urlencode(data)
             data = data.encode('utf-8')
-            print('Sending data:', data)
+            #print('Sending data:', data)
             headers = {}
 
         request = Request(url=url, headers=headers, data=data)
 
         try:
             f = urlopen(request)
-            print('Got reply HTTP status code:', f.status)
+            #print('Got reply HTTP status code:', f.status)
             txt = f.read()
-            print('Got json:', txt)
+            #print('Got json:', txt)
             result = json2python(txt)
-            print('Got result:', result)
+            #print('Got result:', result)
             stat = result.get('status')
-            print('Got status:', stat)
+            #print('Got status:', stat)
             if stat == 'error':
                 errstr = result.get('errormessage', '(none)')
                 raise RequestError('server error message: ' + errstr)
             return result
         except HTTPError as e:
-            print('HTTPError', e)
-            txt = e.read()
-            open('err.html', 'wb').write(txt)
-            print('Wrote error text to err.html')
+            #print('HTTPError', e)
+            return e.read()
 
     def login(self, apikey):
         args = {'apikey': apikey}
         result = self.send_request('login', args)
         sess = result.get('session')
-        print('Got session:', sess)
+        #print('Got session:', sess)
         if not sess:
             raise RequestError('no session in result')
         self.session = sess
@@ -166,7 +165,7 @@ class Client(object):
                 args.update({key: val})
             elif default is not None:
                 args.update({key: default})
-        print('Upload args:', args)
+        # print('Upload args:', args)
         return args
 
     def url_upload(self, url, **kwargs):
@@ -183,7 +182,7 @@ class Client(object):
                 f = open(fn, 'rb')
                 file_args = (fn, f.read())
             except IOError:
-                print('File %s does not exist' % fn)
+                #print('File %s does not exist' % fn)
                 raise
         return self.send_request('upload', args, file_args)
 
@@ -500,3 +499,64 @@ if __name__ == '__main__':
     if opt.myjobs:
         jobs = c.myjobs()
         print(jobs)
+
+
+def SubmitAstrometry(filename, progress):
+    filePath = app.config['UPLOAD_PATH'] + '/' + filename
+
+    args = {'apiurl': Client.default_url,
+            'allow_commercial_use': 'n',
+            'allow_modifications': 'n',
+            'publicly_visible': 'n'}
+    c = Client(Client.default_url)
+    c.login(API_KEY)
+
+    upres = c.upload(filePath, **args)
+
+    stat = upres['status']
+    if stat != 'success':
+        progress.setStatus("error")
+        #print('Upload failed: status', stat)
+        #print(upres)
+        return "error"
+
+    sub_id = upres['subid']
+
+    while True:
+        progress.setStatus("waiting for job to start")
+        stat = c.sub_status(sub_id, justdict=True)
+        #print('Got status:', stat)
+        jobs = stat.get('jobs', [])
+        if len(jobs):
+            for j in jobs:
+                if j is not None:
+                    break
+            if j is not None:
+                #print('Selecting job id', j)
+                solved_id = j
+                break
+        time.sleep(5)
+
+    while True:
+        progress.setStatus("solving file with astrometry.net")
+        stat = c.job_status(solved_id, justdict=True)
+        #print('Got job status:', stat)
+        if stat.get('status', '') in ['success']:
+            progress.setStatus("file solved")
+            success = (stat['status'] == 'success')
+            break
+        elif stat.get('status', '') in ['failure']:
+            progress.setStatus("error")
+            #print("Image solving failed")
+            return "error"  # TODO Error handling
+        time.sleep(5)
+
+    jobId = str(j)
+    retrieve_url = "https://nova.astrometry.net/red_green_image_full/"
+    saving_path = "app/static/images/op/" + jobId
+
+    os.makedirs(saving_path)
+    urllib.request.urlretrieve(retrieve_url + jobId, saving_path + "/red-green.png")
+    progress.setStatus("saved red-green pattern file")
+
+    return jobId

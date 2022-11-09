@@ -2,6 +2,7 @@ flask
 flask-wtf
 flask_bootstrap
 Flask-Caching
+flask-cors
 wtforms
 tle-tools
 sgp4
@@ -16,6 +17,8 @@ tle2czml
 satellite-czml
 random2
 scikit-learn
+scikit-image
 vg
 beyond
 openpyxl
+opencv-python
