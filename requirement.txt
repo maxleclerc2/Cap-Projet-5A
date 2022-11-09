@@ -10,12 +10,12 @@ bokeh==2.4.2
 selenium
 astropy
 pymap3d
-numpy==1.20.0
+numpy
 pygeoif==0.7
 tle2czml
 satellite-czml
 random2
-sklearn
+scikit-learn
 vg
 beyond
 openpyxl
