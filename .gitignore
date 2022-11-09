@@ -16,6 +16,9 @@ app/static/czml/**/*.czml
 app/static/images/**/*.jpg
 app/static/images/**/*.png
 app/static/images/**/*.html
+!app/static/images/clouds.png
+!app/static/images/stars.png
+!app/static/images/twinkling.png
 
 # MacOS
 **/.DS_Store
