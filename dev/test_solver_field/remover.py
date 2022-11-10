@@ -1,6 +1,8 @@
 
 import numpy as np
 import skimage.exposure
+import cv2
+
 from PIL import Image
 from PIL import ImageDraw
 
@@ -8,6 +10,14 @@ def remove_green_stars(image_path:str) -> tuple[object,
                                                 object, 
                                                 object, 
                                                 object]:
+    """
+    This function return all green spot on an image under 5 format.
+    thresh         = The adapted threshold to cut off others colors different then green.
+    mask           = mid mask built by applying an exposure on the blured image.
+    result         = merge of original and mask images.
+    blur           = GaussianBlur on the threshold.
+    mask_red_spots = final result is a color adapted image made using the mask.
+    """
     blur  : object 
     mask  : object
     img   : object 
