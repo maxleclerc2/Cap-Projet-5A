@@ -5,6 +5,8 @@ Each route defines the main logic of the app:
     - if a form is submitted, contact the APIs and process the satellite data
     - return to the user a web page with all the informations
 """
+import datetime
+import os
 
 from flask import (request, render_template, send_file, abort,
                    send_from_directory, jsonify)
@@ -16,11 +18,12 @@ from os import walk
 from os.path import join, splitext, abspath
 from io import BytesIO
 import logging
+import zipfile
 
 from .api import TestAPI, GetSatInfoDW, GetSatInfoST
 from .astrometry import SubmitAstrometry
 from .classes import SatForm, AddSatForm, SatFile, AIForm, ProximityForm, SatClass, TESTProcessForm
-from .functions import GetSatInfoFile, czml, create_plot_list
+from .functions import GetSatInfoFile, czml, create_plot_list, AddFilesToZip
 from .op_progress import Progress
 from .remover import RemoveGreenStars
 from .threshold import GetTleInfo
@@ -707,98 +710,60 @@ def export(request):
     path_images_param_ai = abspath("app/static/images/param/ai/")  # Plot param
     path_images_maneuver_ai = abspath("app/static/images/maneuver/ai/")  # Plots maneuver
     path_images_mahalanobis_ai = abspath("app/static/images/mahalanobis/ai/")  # Plot mahalanobis
-    
+
+    path_astrometry = abspath("app/static/images/op")  # Astrometry results
+
     path_training_file = abspath("app/uploads/") # Machine Learning training file
     data = BytesIO()
 
     # Generate the .zip
     with ZipFile(data, "w") as z:
         if "threshold" in request:
-            for dirname, subdirs, files in walk(path_data_threshold):
-                for filename in files:
-                    absname = abspath(join(dirname, filename))
-                    arcname = absname[len(path_data_threshold) + 1:]
-                    z.write(absname, arcname)
+            AddFilesToZip(z, path_data_threshold)
         elif "ai" in request:
-            for dirname, subdirs, files in walk(path_data_ai):
-                for filename in files:
-                    absname = abspath(join(dirname, filename))
-                    arcname = absname[len(path_data_ai) + 1:]
-                    z.write(absname, arcname)
+            AddFilesToZip(z, path_data_ai)
 
         # Selecting the right files to include
         if request == "threshold-maneuver":
             # .txt
-            for dirname, subdirs, files in walk(path_manoeuvre_threshold):
-                for filename in files:
-                    absname = abspath(join(dirname, filename))
-                    arcname = absname[len(path_manoeuvre_threshold) + 1:]
-                    z.write(absname, arcname)
+            AddFilesToZip(z, path_manoeuvre_threshold)
             # Energy and Energy Delta
-            for dirname, subdirs, files in walk(path_images_maneuver_threshold):
-                for filename in files:
-                    absname = abspath(join(dirname, filename))
-                    arcname = absname[len(path_images_maneuver_threshold) + 1:]
-                    z.write(absname, arcname)
+            AddFilesToZip(z, path_images_maneuver_threshold)
         elif request == "threshold-parameters":
             # Orbital parameters
-            for dirname, subdirs, files in walk(path_images_param_threshold):
-                for filename in files:
-                    absname = abspath(join(dirname, filename))
-                    arcname = absname[len(path_images_param_threshold) + 1:]
-                    z.write(absname, arcname)
+            AddFilesToZip(z, path_images_param_threshold)
         elif request == "threshold-mahalanobis":
             # Mahalanobis
-            for dirname, subdirs, files in walk(path_images_mahalanobis_threshold):
-                for filename in files:
-                    absname = abspath(join(dirname, filename))
-                    arcname = absname[len(path_images_mahalanobis_threshold) + 1:]
-                    z.write(absname, arcname)
+            AddFilesToZip(z, path_images_mahalanobis_threshold)
 
         elif request == "ai-maneuver":
             # .txt
-            for dirname, subdirs, files in walk(path_manoeuvre_ai):
-                for filename in files:
-                    absname = abspath(join(dirname, filename))
-                    arcname = absname[len(path_manoeuvre_ai) + 1:]
-                    z.write(absname, arcname)
+            AddFilesToZip(z, path_manoeuvre_ai)
             # Energy and Energy Delta (not displayed on the web page)
-            for dirname, subdirs, files in walk(path_images_maneuver_ai):
-                for filename in files:
-                    absname = abspath(join(dirname, filename))
-                    arcname = absname[len(path_images_maneuver_ai) + 1:]
-                    z.write(absname, arcname)
+            AddFilesToZip(z, path_images_maneuver_ai)
         elif request == "ai-parameters":
             # Orbital parameters
-            for dirname, subdirs, files in walk(path_images_param_ai):
-                for filename in files:
-                    absname = abspath(join(dirname, filename))
-                    arcname = absname[len(path_images_param_ai) + 1:]
-                    z.write(absname, arcname)
+            AddFilesToZip(z, path_images_param_ai)
         elif request == "ai-mahalanobis":
             # Mahalanobis
-            for dirname, subdirs, files in walk(path_images_mahalanobis_ai):
-                for filename in files:
-                    absname = abspath(join(dirname, filename))
-                    arcname = absname[len(path_images_mahalanobis_ai) + 1:]
-                    z.write(absname, arcname)
+            AddFilesToZip(z, path_images_mahalanobis_ai)
         else:
-            # Machine Learning training file
-            ml_test = True
-            for dirname, subdirs, files in walk(path_training_file):
-                for filename in files:
-                    if filename == request:
-                        ml_file = True
-                        absname = abspath(join(dirname, filename))
-                        arcname = absname[len(path_training_file) + 1:]
-                        z.write(absname, arcname)
-                        # AI sat info
-                        for dirname_2, subdirs_2, files_2 in walk(path_data_ai):
-                            for filename_2 in files_2:
-                                absname_2 = abspath(join(dirname_2, filename_2))
-                                arcname_2 = absname_2[len(path_data_ai) + 1:]
-                                z.write(absname_2, arcname_2)
-                        break
+            if "astrometry" in request:
+                folder = request.split("=")[1]
+                AddFilesToZip(z, path_astrometry + "/" + folder)
+            else:
+                # Machine Learning training file
+                ml_test = True
+                for dirname, subdirs, files in walk(path_training_file):
+                    for filename in files:
+                        if filename == request:
+                            ml_file = True
+                            absname = abspath(join(dirname, filename))
+                            arcname = absname[len(path_training_file) + 1:]
+                            z.write(absname, arcname)
+                            # AI sat info
+                            AddFilesToZip(z, path_data_ai)
+                            break
 
     data.seek(0)
 
@@ -807,23 +772,33 @@ def export(request):
         if not ml_file:
             logging.error('Download - Tried to download %s', request)
             return render_template('error.html', errorMessage="No file to download with this link")
-    return send_file(data, mimetype=fileType, as_attachment=True, attachment_filename=fileName)        
+    return send_file(data, mimetype=fileType, as_attachment=True, download_name=fileName)
 
 
-# Space image processing
-@app.route('/image-processing', methods=['GET', 'POST'])
-def image_processing():
+# KLT main page
+@app.route('/klt-processing', methods=['GET', 'POST'])
+def klt_processing():
+    # TODO
+    return render_template('index.html')
+
+
+# Astrometry.net main page
+@app.route('/astrometry-processing', methods=['GET', 'POST'])
+def astrometry_processing():
     # Create the form
     formProcessTEST = TESTProcessForm()
 
     return render_template('image_processing.html', formProcessTEST=formProcessTEST)
 
 
-@app.route('/test-processing-submit', methods=['POST'])
-def test_processing_submit():
+# Astrometry.net image processing
+@app.route('/astrometry-processing-submit', methods=['POST'])
+def astrometry_processing_submit():
     global progress
-    logging.info('OPTICAL PROCESSING - Request received')
+    logging.info('Optical Processing - Request received')
     progress = Progress()
+    files = []
+    names = []
 
     # Saving the uploaded file
     uploaded_file = request.files['fileUpload']
@@ -835,32 +810,90 @@ def test_processing_submit():
             abort(400)
         progress.setStatus("file saved")
         uploaded_file.save(join(app.config['UPLOAD_PATH'], filename))
-        logging.info('OPTICAL PROCESSING - Images saved as ' + filename)
+        logging.info('Optical Processing - File saved as ' + filename)
     else:
         progress.setStatus("error")
-        logging.info('OPTICAL PROCESSING - Unable to save image ' + filename)
+        logging.error('Optical Processing - Unable to save file ' + filename)
         return jsonify({"response": "pas ok"})
 
-    try:
-        folderId = SubmitAstrometry(filename, progress)
-    except Exception as e:
-        print(e)
-        progress.setStatus("error")
-        logging.info('OPTICAL PROCESSING - Error with astrometry.net')
-        return jsonify({"response": "pas ok :("})
+    progress.setStatus("checking file")
+    uploaded_filename, uploaded_file_extension = splitext(filename)
+    if uploaded_file_extension.__eq__(".zip"):
+        logging.info('Optical Processing - ZIP file received, extracting content')
+        zipped = zipfile.ZipFile(join(app.config['UPLOAD_PATH'], filename))
+        extracted_path = join(app.config['UPLOAD_PATH'], uploaded_filename)
+        zipped.extractall(path=extracted_path)
 
-    if folderId.__eq__("error"):
-        logging.info('OPTICAL PROCESSING - Error while processing the image ' + filename + ' with astrometry.net')
-        return jsonify({"response": "pas ok :("})
+        for dirname, subdirs, zippped_files in walk(extracted_path):
+            for filename in zippped_files:
+                absname = abspath(join(dirname, filename))
 
-    result = RemoveGreenStars(folderId)
-    if result.__eq__("nok"):
+                secured_filename = secure_filename(filename)
+                if secured_filename != '':
+                    file_ext = splitext(secured_filename)[1]
+                    if file_ext not in app.config['IMAGES_EXTENSIONS']:
+                        logging.warn('Optical Processing - Extracted file ' + filename + ' is not an image')
+                        break
+                    try:
+                        os.remove(join(app.config['UPLOAD_PATH'], secured_filename))
+                    except Exception as e:
+                        logging.info('Optical Processing - No file to overwrite for ' + secured_filename)
+                    os.rename(absname, join(app.config['UPLOAD_PATH'], secured_filename))
+                    files.append(secured_filename)
+                    logging.info('Optical Processing - File saved as ' + secured_filename)
+                else:
+                    logging.warn('Optical Processing - Extracted file ' + filename + ' does not have a valid name')
+
+        logging.info('Optical Processing - Finished extracting ZIP file')
+    else:
+        logging.info('Optical Processing - Single image to process')
+        if uploaded_file_extension not in app.config['IMAGES_EXTENSIONS']:
+            progress.setStatus("error")
+            logging.error('Optical Processing - File ' + filename + ' is not an image')
+            return jsonify({"response": "pas ok :("})
+        files.append(filename)
+
+    if len(files) == 0:
         progress.setStatus("error")
-        logging.info('OPTICAL PROCESSING - Error while creating the mask for the image ' + filename)
+        logging.error('Optical Processing - No image to process')
         return jsonify({"response": "pas ok :("})
+    saving_folder = str(datetime.datetime.now()).replace(" ", "_").replace(":", "-")
+
+    for filename in files:
+        progress.setStatus("processing " + filename)
+        logging.info('Optical Processing - Processing ' + filename)
+        try:
+            name, extension = splitext(filename)
+            names.append(name)
+            output = SubmitAstrometry(saving_folder, name, extension, progress)
+        except Exception as e:
+            logging.error(e)
+            progress.setStatus("error")
+            logging.error('Optical Processing - Error with astrometry.net')
+            return jsonify({"response": "pas ok :("})
+        if output.__eq__("error"):
+            progress.setStatus("error")
+            logging.error('Optical Processing - Unable to process the image ' + filename + ' with astrometry.net')
+            return jsonify({"response": "pas ok :("})
+
+        try:
+            result = RemoveGreenStars(saving_folder, name)
+        except Exception as e:
+            logging.error(e)
+            progress.setStatus("error")
+            logging.error('Optical Processing - Error while removing stars for the image ' + filename)
+            return jsonify({"response": "pas ok :("})
+        if result.__eq__("nok"):
+            progress.setStatus("error")
+            logging.error('Optical Processing - Error while creating the mask for the image ' + filename)
+            return jsonify({"response": "pas ok :("})
+
+        progress.setStatus(filename + " complete")
+        logging.info('Optical Processing - ' + filename + ' complete')
 
     progress.setStatus("success")
-    return jsonify({"response": "ok", "jobId": folderId})
+    logging.info('Optical Processing - Complete')
+    return jsonify({"response": "ok", "folder": saving_folder, "names": names})
 
 
 # Check the optical processing progress

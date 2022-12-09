@@ -54,8 +54,8 @@ def remove_green_stars(image_path:str) -> tuple[object,
     return thresh, mask, result, blur, mask_red_spots
 
 
-def RemoveGreenStars(folderId):
-    imagesPath = "app/static/images/op/" + folderId + "/"
+def RemoveGreenStars(saving_folder, name):
+    imagesPath = "app/static/images/op/" + saving_folder + "/" + name + "/"
     thresh, mask, result, blur, mask_red_spots = remove_green_stars(imagesPath + "red-green.png")
     if thresh is not None and mask is not None and result is not None and blur is not None and mask_red_spots is not None:
         cv2.imwrite(imagesPath + 'make_greenscreen_thresh.png', thresh)

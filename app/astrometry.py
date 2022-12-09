@@ -27,7 +27,7 @@ import json
 
 
 # TODO API Key
-API_KEY = "qilocyqjwjchhdhq"
+API_KEY = app.config['ASTROMETRY_API_KEY']
 
 
 def json2python(data):
@@ -501,8 +501,9 @@ if __name__ == '__main__':
         print(jobs)
 
 
-def SubmitAstrometry(filename, progress):
-    filePath = app.config['UPLOAD_PATH'] + '/' + filename
+def SubmitAstrometry(saving_folder, filename, file_extension, progress):
+    filePath = app.config['UPLOAD_PATH'] + '/' + filename + file_extension
+    saving_path = "app/static/images/op/" + saving_folder + "/" + filename
 
     args = {'apiurl': Client.default_url,
             'allow_commercial_use': 'n',
@@ -523,7 +524,7 @@ def SubmitAstrometry(filename, progress):
     sub_id = upres['subid']
 
     while True:
-        progress.setStatus("waiting for job to start")
+        progress.setStatus("waiting for job to start for file " + filename)
         stat = c.sub_status(sub_id, justdict=True)
         #print('Got status:', stat)
         jobs = stat.get('jobs', [])
@@ -538,11 +539,11 @@ def SubmitAstrometry(filename, progress):
         time.sleep(5)
 
     while True:
-        progress.setStatus("solving file with astrometry.net")
+        progress.setStatus("solving file " + filename + " with astrometry.net")
         stat = c.job_status(solved_id, justdict=True)
         #print('Got job status:', stat)
         if stat.get('status', '') in ['success']:
-            progress.setStatus("file solved")
+            progress.setStatus("file " + filename + " solved")
             success = (stat['status'] == 'success')
             break
         elif stat.get('status', '') in ['failure']:
@@ -553,10 +554,10 @@ def SubmitAstrometry(filename, progress):
 
     jobId = str(j)
     retrieve_url = "https://nova.astrometry.net/red_green_image_full/"
-    saving_path = "app/static/images/op/" + jobId
 
     os.makedirs(saving_path)
+    os.rename(filePath, saving_path + "/original" + file_extension)
     urllib.request.urlretrieve(retrieve_url + jobId, saving_path + "/red-green.png")
-    progress.setStatus("saved red-green pattern file")
+    progress.setStatus("saved red-green pattern file of " + filename)
 
-    return jobId
+    return "ok"

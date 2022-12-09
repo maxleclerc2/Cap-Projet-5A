@@ -50,7 +50,9 @@
                 <li class="nav-item dropdown">
                     <a href="#" class="nav-link dropdown-toggle" data-bs-toggle="dropdown">Tools</a>
                     <div class="dropdown-menu">
-                        <a href="/image-processing" class="dropdown-item">Optical processing</a>
+                        <a href="/astrometry-processing" class="dropdown-item">Star remover</a>
+                        <div class="dropdown-divider"></div>
+                        <a href="/klt-processing" class="dropdown-item">Satellite recognition</a>
                     </div>
                 </li>
             </ul>
@@ -66,7 +68,7 @@
 
 <header>
     <h1>SpaceOpsServer</h1>
-    <h2>Optical processing chain</h2>
+    <h2>Star remover with Astrometry.net</h2>
 </header>
 
 <section>
@@ -76,6 +78,10 @@
                 <input class="accordion-input" type="checkbox" name="checkbox-a" id="checkProcess" onClick="showForm('checkProcess', 'uploader')">
                 <label class="accordion-label" for="checkProcess">Process images</label>
                 <div class="accordion-content processFields" id="processFields">
+                    <h1>Please choose a file to process.</h1>
+                    <h2>You can upload a single image OR a ZIP file containing all the images you want to process.<br>
+                        When uploading a ZIP, only the first file will have its results displayed, you can download<br>
+                        all the results by clicking on the "Download results" button.</h2>
                     <form action="#" method="POST" role="formProcessTEST" class="uploader" enctype="multipart/form-data" id="uploader">
                         <div class="OnlineSearch">
                             {{ formProcessTEST.fileUpload(id="file-upload") }}
@@ -105,6 +111,12 @@
                     <br>
                     <h2 id="progress"></h2>
                     <div id="results" style="display:none">
+                        <h1 id="results-of"></h1>
+                        <div class="BoutonMilieu">
+                            <a id="dl-button-1" href="#" class="btn btn-add">Download results</a>
+                        </div>
+                        <br>
+                        <br>
                         <h3>Red Green</h3>
                         <img id="red-green" src="/">
                         <br>
@@ -129,6 +141,9 @@
                         <img id="mask-red" src="/">
                         <br>
                         <br>
+                        <div class="BoutonMilieu">
+                            <a id="dl-button-2" href="#" class="btn btn-add">Download results</a>
+                        </div>
                     </div>
                 </div>
             </div>
@@ -153,7 +168,7 @@ form.onsubmit = async (e) => {
   document.getElementById('results').style.display = "none";
   const form = e.currentTarget;
   const formData = new FormData(form);
-  const url = 'http://localhost:5000/test-processing-submit';
+  const url = 'http://localhost:5000/astrometry-processing-submit';
 
   const xhr = new XMLHttpRequest();
   xhr.open("POST", url, true);
@@ -167,12 +182,17 @@ form.onsubmit = async (e) => {
       console.log(result);
 
       if (result.response == "ok") {
-        document.getElementById('red-green').src = '/static/images/op/' + result.jobId + '/red-green.png';
-        document.getElementById('thresh').src = '/static/images/op/' + result.jobId + '/make_greenscreen_thresh.png';
-        document.getElementById('mask').src = '/static/images/op/' + result.jobId + '/make_greenscreen_mask.png';
-        document.getElementById('result').src = '/static/images/op/' + result.jobId + '/make_greenscreen_antialiased.png';
-        document.getElementById('blur').src = '/static/images/op/' + result.jobId + '/make_greenscreen_blur.png';
-        document.getElementById('mask-red').src = '/static/images/op/' + result.jobId + '/make_mask_red_spots.png';
+        document.getElementById('results-of').innerHTML = 'Results of ' + result.names[0] + ' displayed'
+
+        document.getElementById('dl-button-1').href = '/export&astrometry=' + result.folder
+        document.getElementById('dl-button-2').href = '/export&astrometry=' + result.folder
+
+        document.getElementById('red-green').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/red-green.png';
+        document.getElementById('thresh').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_thresh.png';
+        document.getElementById('mask').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_mask.png';
+        document.getElementById('result').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_antialiased.png';
+        document.getElementById('blur').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_blur.png';
+        document.getElementById('mask-red').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_mask_red_spots.png';
 
         document.getElementById('results').style.display = "inline-block";
       }

@@ -5,17 +5,17 @@ test
 # Inutiles
 **/__pycache__
 ssa.log
-app/uploads/*.txt
-app/uploads/*.jpg
-app/uploads/*.jpeg
-app/uploads/*.png
-app/uploads/*.tiff
+app/uploads/*
+!app/uploads/Manoeuvers_Ath_Python.xlsx
+!app/uploads/Manoeuvers_Ath_Scilab.xlsx
 app/export/**/SatInfo.txt
 app/export/**/maneuvers.txt
 app/static/czml/**/*.czml
 app/static/images/**/*.jpg
 app/static/images/**/*.png
 app/static/images/**/*.html
+app/static/images/op/*
+!app/static/images/op/Sample.txt
 !app/static/images/clouds.png
 !app/static/images/stars.png
 !app/static/images/twinkling.png

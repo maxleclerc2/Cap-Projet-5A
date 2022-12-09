@@ -11,7 +11,7 @@ import logging
 
 def init_app():
     logging.basicConfig(filename='ssa.log',
-                        format='[%(asctime)s] %(levelname)s: %(message)s',
+                        format='%(levelname)s: %(message)s',
                         level=logging.INFO)
     logging.info('Started SSA Web App Prototype')
 

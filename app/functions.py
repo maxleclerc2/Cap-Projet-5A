@@ -1,6 +1,8 @@
 """
 This file defines some general functions used across the app.
 """
+from os import walk
+from os.path import abspath, join
 
 from sgp4.api import days2mdhms
 from tletools import TLE
@@ -700,3 +702,11 @@ def CreateLix(SatInfo):
     Lix['Delta Along-track avg'] = SatInfo.DELTA_ALONG_TRACK_AVG
     
     return Lix
+
+
+def AddFilesToZip(zip_file, path):
+    for dirname, subdirs, files in walk(path):
+        for filename in files:
+            absname = abspath(join(dirname, filename))
+            arcname = absname[len(path) + 1:]
+            zip_file.write(absname, arcname)
