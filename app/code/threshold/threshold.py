@@ -8,8 +8,8 @@ from statistics import pstdev
 
 import logging
 
-from .positions import GetLatLong
-from .functions import ConvertCoord, GetOrbType, GetInitialMass, GetDeltaVDeltaM, ProcessTLES
+from app.code.utils.positions import GetLatLong
+from app.code.utils.functions import ConvertCoord, GetOrbType, GetInitialMass, GetDeltaVDeltaM, ProcessTLES
 
 # -----------------------------------------------------------------------------
 # Functions for the threshold search

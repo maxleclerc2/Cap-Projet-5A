@@ -14,8 +14,10 @@ app/static/czml/**/*.czml
 app/static/images/**/*.jpg
 app/static/images/**/*.png
 app/static/images/**/*.html
-app/static/images/op/*
-!app/static/images/op/Sample.txt
+app/static/images/astrometry/*
+app/static/images/klt/*
+!app/static/images/astrometry/Sample.txt
+!app/static/images/klt/Sample.txt
 !app/static/images/clouds.png
 !app/static/images/stars.png
 !app/static/images/twinkling.png
@@ -29,10 +31,9 @@ app/static/images/op/*
 # Tâches à faire avant de rendre un livrable (vous en avez pas besoin)
 launch.bat
 TODO AVANT RENDU.txt
-app/FileDownloader.py
-app/SpaceWeather.py
-app/proximity.py
-app/routes-BACKUP.py
+app/code/space_weather/*
+app/code/proximity/*
+app/code/routes/routes-BACKUP.py
 app/templates/space-weather-dashboard.html
 app/templates/proximity.html
 /dev/perso/

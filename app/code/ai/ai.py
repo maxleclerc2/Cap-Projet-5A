@@ -17,8 +17,8 @@ import warnings
 from datetime import datetime
 import vg  # Calculate the angle between two vectors in 3D
 
-from .positions import GetLatLong
-from .functions import ConvertCoord, GetQSW, GetMeanCross, GetOrbType, GetInitialMass, GetDeltaVDeltaM, CreateLix, ProcessTLES
+from app.code.utils.positions import GetLatLong
+from app.code.utils.functions import ConvertCoord, GetQSW, GetMeanCross, GetOrbType, GetInitialMass, GetDeltaVDeltaM, CreateLix, ProcessTLES
 
 
 # -----------------------------------------------------------------------------

@@ -11,18 +11,19 @@ import logging
 
 def init_app():
     logging.basicConfig(filename='ssa.log',
-                        format='%(levelname)s: %(message)s',
+                        format='[%(asctime)s] %(levelname)s: %(message)s',
                         level=logging.INFO)
     logging.info('Started SSA Web App Prototype')
 
     app = Flask(__name__, instance_relative_config=False)
     CORS(app)
-    app.config.from_pyfile("config.py")
+    app.config.from_pyfile("./code/config/config.py")
 
     bootstrap = Bootstrap(app)
     cache = Cache(app)
 
     with app.app_context():
-        from . import routes, api, functions
+        from app.code.routes import routes
+        from app.code.utils import api, functions
 
         return app

@@ -26,7 +26,7 @@ from email.encoders import encode_noop
 import json
 
 
-# TODO API Key
+# TODO API Key in configs
 API_KEY = app.config['ASTROMETRY_API_KEY']
 
 
@@ -503,7 +503,7 @@ if __name__ == '__main__':
 
 def SubmitAstrometry(saving_folder, filename, file_extension, progress):
     filePath = app.config['UPLOAD_PATH'] + '/' + filename + file_extension
-    saving_path = "app/static/images/op/" + saving_folder + "/" + filename
+    saving_path = "app/static/images/astrometry/" + saving_folder + "/" + filename
 
     args = {'apiurl': Client.default_url,
             'allow_commercial_use': 'n',

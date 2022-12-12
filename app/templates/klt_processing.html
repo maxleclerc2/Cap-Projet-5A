@@ -68,7 +68,7 @@
 
 <header>
     <h1>SpaceOpsServer</h1>
-    <h2>Star remover with Astrometry.net</h2>
+    <h2>Satellite recognition between images</h2>
 </header>
 
 <section>
@@ -78,13 +78,16 @@
                 <input class="accordion-input" type="checkbox" name="checkbox-a" id="checkProcess" onClick="showForm('checkProcess', 'uploader')">
                 <label class="accordion-label" for="checkProcess">Process images</label>
                 <div class="accordion-content processFields" id="processFields">
-                    <h1>Please choose a file to process.</h1>
-                    <h2>You can upload a single image OR a ZIP file containing all the images you want to process.<br>
-                        When uploading a ZIP, only the first file will have its results displayed, you can download<br>
-                        all the results by clicking on the "Download results" button.</h2>
-                    <form action="#" method="POST" role="formProcessTEST" class="uploader" enctype="multipart/form-data" id="uploader">
+                    <form action="#" method="POST" role="formProcess" class="uploader" enctype="multipart/form-data" id="uploader">
+                        <h2>Please choose a ZIP file to process.</h2>
+                        <h3>The ZIP file should contain the images (at least 2) to process.<br>
+                            Please make sure that the images are in alphabetical order, for example:<br>
+                            01.png, 02.png, 03.png, etc.<br><br>
+                            The displayed results will be from the first images processed, you can download<br>
+                            all the results by clicking on the "Download results" button.</h3>
+                        <br>
                         <div class="OnlineSearch">
-                            {{ formProcessTEST.fileUpload(id="file-upload") }}
+                            {{ formProcess.fileUpload(id="file-upload") }}
 
                             <label class="label-uploader" for="file-upload" id="file-drag">
                                 <img name="file-upload" id="file-upload" src="#" alt="Preview" class="hidden">
@@ -106,40 +109,17 @@
                         </div>
                         <br>
 
-                        {{ formProcessTEST.submit(class="btn btn-add") }}
+                        {{ formProcess.submit(class="btn btn-add") }}
                     </form>
                     <br>
                     <h2 id="progress"></h2>
+                    <br>
+                    <br>
                     <div id="results" style="display:none">
-                        <h1 id="results-of"></h1>
+                        <h2 id="results-of"></h2>
                         <div class="BoutonMilieu">
                             <a id="dl-button-1" href="#" class="btn btn-add">Download results</a>
                         </div>
-                        <br>
-                        <br>
-                        <h3>Red Green</h3>
-                        <img id="red-green" src="/">
-                        <br>
-                        <br>
-                        <h3>Thresh</h3>
-                        <img id="thresh" src="/">
-                        <br>
-                        <br>
-                        <h3>Mask</h3>
-                        <img id="mask" src="/">
-                        <br>
-                        <br>
-                        <h3>Result</h3>
-                        <img id="result" src="/">
-                        <br>
-                        <br>
-                        <h3>Blur</h3>
-                        <img id="blur" src="/">
-                        <br>
-                        <br>
-                        <h3>Mask Red Spots</h3>
-                        <img id="mask-red" src="/">
-                        <br>
                         <br>
                         <div class="BoutonMilieu">
                             <a id="dl-button-2" href="#" class="btn btn-add">Download results</a>
@@ -168,7 +148,7 @@ form.onsubmit = async (e) => {
   document.getElementById('results').style.display = "none";
   const form = e.currentTarget;
   const formData = new FormData(form);
-  const url = 'http://localhost:5000/astrometry-processing-submit';
+  const url = 'http://localhost:5000/klt-processing-submit';
 
   const xhr = new XMLHttpRequest();
   xhr.open("POST", url, true);
@@ -176,6 +156,7 @@ form.onsubmit = async (e) => {
   //Send the proper header information along with the request
   xhr.setRequestHeader("enctype", "multipart/form-data");
 
+  console.log("avant post");
   xhr.onreadystatechange  = () => { // Call a function when the state changes.
     if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
       var result = JSON.parse(xhr.response);
@@ -184,15 +165,8 @@ form.onsubmit = async (e) => {
       if (result.response == "ok") {
         document.getElementById('results-of').innerHTML = 'Results of ' + result.names[0] + ' displayed'
 
-        document.getElementById('dl-button-1').href = '/export&astrometry=' + result.folder
-        document.getElementById('dl-button-2').href = '/export&astrometry=' + result.folder
-
-        document.getElementById('red-green').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/red-green.png';
-        document.getElementById('thresh').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_thresh.png';
-        document.getElementById('mask').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_mask.png';
-        document.getElementById('result').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_antialiased.png';
-        document.getElementById('blur').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_blur.png';
-        document.getElementById('mask-red').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_mask_red_spots.png';
+        document.getElementById('dl-button-1').href = '/export&klt=' + result.folder
+        document.getElementById('dl-button-2').href = '/export&klt=' + result.folder
 
         document.getElementById('results').style.display = "inline-block";
       }
@@ -200,7 +174,7 @@ form.onsubmit = async (e) => {
   }
   xhr.send(formData);
 
-  const progress_url = 'http://localhost:5000/check-progress';
+  const progress_url = 'http://localhost:5000/check-klt-progress';
   var finished = new Boolean(false);
 
   while (finished == false) {

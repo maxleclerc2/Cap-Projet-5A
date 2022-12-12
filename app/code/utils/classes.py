@@ -96,8 +96,8 @@ class ProximityForm(FlaskForm):
     submit = SubmitField('Submit')
 
 
-# AI 'new search' form
-class TESTProcessForm(FlaskForm):
+# Image processing form
+class ProcessImageForm(FlaskForm):
     fileUpload = FileField('File')
     submit = SubmitField('Submit')
 

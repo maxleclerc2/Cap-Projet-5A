@@ -1,4 +1,4 @@
-class Progress:
+class ImageProcessingProgress:
     def __init__(self):
         self.status = "starting"
 

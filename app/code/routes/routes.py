@@ -7,6 +7,7 @@ Each route defines the main logic of the app:
 """
 import datetime
 import os
+import time # TODO
 
 from flask import (request, render_template, send_file, abort,
                    send_from_directory, jsonify)
@@ -20,19 +21,19 @@ from io import BytesIO
 import logging
 import zipfile
 
-from .api import TestAPI, GetSatInfoDW, GetSatInfoST
-from .astrometry import SubmitAstrometry
-from .classes import SatForm, AddSatForm, SatFile, AIForm, ProximityForm, SatClass, TESTProcessForm
-from .functions import GetSatInfoFile, czml, create_plot_list, AddFilesToZip
-from .op_progress import Progress
-from .remover import RemoveGreenStars
-from .threshold import GetTleInfo
-from .ai import GetSatInfoAI, GetPredAI, GetManeuversAI, PreparePlotsAI
-# TODO from .proximity import GetTleProximity, DetectProximity
-# TODO from .SpaceWeather import run as SP_run
+from app.code.utils.api import TestAPI, GetSatInfoDW, GetSatInfoST
+from app.code.astrometry.astrometry import SubmitAstrometry
+from app.code.utils.classes import SatForm, AddSatForm, SatFile, AIForm, SatClass, ProcessImageForm
+from app.code.utils.functions import GetSatInfoFile, czml, create_plot_list, AddFilesToZip
+from app.code.utils.image_processing_progress import ImageProcessingProgress
+from app.code.astrometry.remover import RemoveGreenStars
+from app.code.threshold.threshold import GetTleInfo
+from app.code.ai.ai import GetSatInfoAI, GetPredAI, GetManeuversAI, PreparePlotsAI
+# TODO from app.code.proximity.proximity import GetTleProximity, DetectProximity
+# TODO from app.code.space_weather.SpaceWeather import run as SP_run
 
 # Global variables
-# TODO For development only, not optimized when there are multiple users simultaneously
+# TODO For development only, not working when there are multiple users simultaneously
 # Threshold
 global threshold_SatInfo
 global threshold_nb_sat
@@ -53,8 +54,10 @@ ai_nb_sat = 0
 ai_SatNames = []
 ai_to_remove = False
 Prediction = None
-# Optical Processing progress
-global progress
+# KLT Processing progress
+global klt_progress
+# Astrometry Processing progress
+global astro_progress
 
 
 # -----------------------------------------------------------------------------
@@ -711,7 +714,8 @@ def export(request):
     path_images_maneuver_ai = abspath("app/static/images/maneuver/ai/")  # Plots maneuver
     path_images_mahalanobis_ai = abspath("app/static/images/mahalanobis/ai/")  # Plot mahalanobis
 
-    path_astrometry = abspath("app/static/images/op")  # Astrometry results
+    path_klt = abspath("app/static/images/klt")  # Astrometry results
+    path_astrometry = abspath("app/static/images/astrometry")  # Astrometry results
 
     path_training_file = abspath("app/uploads/") # Machine Learning training file
     data = BytesIO()
@@ -751,6 +755,9 @@ def export(request):
             if "astrometry" in request:
                 folder = request.split("=")[1]
                 AddFilesToZip(z, path_astrometry + "/" + folder)
+            elif "klt" in request:
+                folder = request.split("=")[1]
+                AddFilesToZip(z, path_klt + "/" + folder)
             else:
                 # Machine Learning training file
                 ml_test = True
@@ -778,25 +785,69 @@ def export(request):
 # KLT main page
 @app.route('/klt-processing', methods=['GET', 'POST'])
 def klt_processing():
-    # TODO
-    return render_template('index.html')
+    # Create the form
+    formProcess = ProcessImageForm()
+
+    return render_template('klt_processing.html', formProcess=formProcess)
+
+
+# KLT image processing
+@app.route('/klt-processing-submit', methods=['POST'])
+def klt_processing_submit():
+    global klt_progress
+    logging.info('KLT Processing - Request received')
+    klt_progress = ImageProcessingProgress()
+
+    # Saving the uploaded file
+    uploaded_file = request.files['fileUpload']
+    filename = secure_filename(uploaded_file.filename)
+    if filename != '':
+        file_ext = splitext(filename)[1]
+        if file_ext not in app.config['UPLOAD_EXTENSIONS']:
+            klt_progress.setStatus("error")
+            abort(400)
+        klt_progress.setStatus("file saved")
+        uploaded_file.save(join(app.config['UPLOAD_PATH'], filename))
+        logging.info('KLT Processing - File saved as ' + filename)
+    else:
+        klt_progress.setStatus("error")
+        logging.error('KLT Processing - Unable to save file ' + filename)
+        return jsonify({"response": "pas ok"})
+
+    time.sleep(2)
+    klt_progress.setStatus("test 1")
+    time.sleep(2)
+    klt_progress.setStatus("test 2")
+    time.sleep(2)
+    klt_progress.setStatus("success")
+    time.sleep(2)
+
+    return jsonify({"response": "ok", "folder": "bruh", "names": ["bruh"]})
+
+
+# Check the KLT processing progress
+@app.route('/check-klt-progress')
+def check_klt_progress():
+    global klt_progress
+    status = klt_progress.getStatus()
+    return jsonify({"status": status})
 
 
 # Astrometry.net main page
 @app.route('/astrometry-processing', methods=['GET', 'POST'])
 def astrometry_processing():
     # Create the form
-    formProcessTEST = TESTProcessForm()
+    formProcess = ProcessImageForm()
 
-    return render_template('image_processing.html', formProcessTEST=formProcessTEST)
+    return render_template('astrometry_processing.html', formProcess=formProcess)
 
 
 # Astrometry.net image processing
 @app.route('/astrometry-processing-submit', methods=['POST'])
 def astrometry_processing_submit():
-    global progress
-    logging.info('Optical Processing - Request received')
-    progress = Progress()
+    global astro_progress
+    logging.info('Astrometry Processing - Request received')
+    astro_progress = ImageProcessingProgress()
     files = []
     names = []
 
@@ -806,20 +857,20 @@ def astrometry_processing_submit():
     if filename != '':
         file_ext = splitext(filename)[1]
         if file_ext not in app.config['UPLOAD_EXTENSIONS']:
-            progress.setStatus("error")
+            astro_progress.setStatus("error")
             abort(400)
-        progress.setStatus("file saved")
+        astro_progress.setStatus("file saved")
         uploaded_file.save(join(app.config['UPLOAD_PATH'], filename))
-        logging.info('Optical Processing - File saved as ' + filename)
+        logging.info('Astrometry Processing - File saved as ' + filename)
     else:
-        progress.setStatus("error")
-        logging.error('Optical Processing - Unable to save file ' + filename)
+        astro_progress.setStatus("error")
+        logging.error('Astrometry Processing - Unable to save file ' + filename)
         return jsonify({"response": "pas ok"})
 
-    progress.setStatus("checking file")
+    astro_progress.setStatus("checking file")
     uploaded_filename, uploaded_file_extension = splitext(filename)
     if uploaded_file_extension.__eq__(".zip"):
-        logging.info('Optical Processing - ZIP file received, extracting content')
+        logging.info('Astrometry Processing - ZIP file received, extracting content')
         zipped = zipfile.ZipFile(join(app.config['UPLOAD_PATH'], filename))
         extracted_path = join(app.config['UPLOAD_PATH'], uploaded_filename)
         zipped.extractall(path=extracted_path)
@@ -832,75 +883,75 @@ def astrometry_processing_submit():
                 if secured_filename != '':
                     file_ext = splitext(secured_filename)[1]
                     if file_ext not in app.config['IMAGES_EXTENSIONS']:
-                        logging.warn('Optical Processing - Extracted file ' + filename + ' is not an image')
+                        logging.warn('Astrometry Processing - Extracted file ' + filename + ' is not an image')
                         break
                     try:
                         os.remove(join(app.config['UPLOAD_PATH'], secured_filename))
                     except Exception as e:
-                        logging.info('Optical Processing - No file to overwrite for ' + secured_filename)
+                        logging.info('Astrometry Processing - No file to overwrite for ' + secured_filename)
                     os.rename(absname, join(app.config['UPLOAD_PATH'], secured_filename))
                     files.append(secured_filename)
-                    logging.info('Optical Processing - File saved as ' + secured_filename)
+                    logging.info('Astrometry Processing - File saved as ' + secured_filename)
                 else:
-                    logging.warn('Optical Processing - Extracted file ' + filename + ' does not have a valid name')
+                    logging.warn('Astrometry Processing - Extracted file ' + filename + ' does not have a valid name')
 
-        logging.info('Optical Processing - Finished extracting ZIP file')
+        logging.info('Astrometry Processing - Finished extracting ZIP file')
     else:
-        logging.info('Optical Processing - Single image to process')
+        logging.info('Astrometry Processing - Single image to process')
         if uploaded_file_extension not in app.config['IMAGES_EXTENSIONS']:
-            progress.setStatus("error")
-            logging.error('Optical Processing - File ' + filename + ' is not an image')
+            astro_progress.setStatus("error")
+            logging.error('Astrometry Processing - File ' + filename + ' is not an image')
             return jsonify({"response": "pas ok :("})
         files.append(filename)
 
     if len(files) == 0:
-        progress.setStatus("error")
-        logging.error('Optical Processing - No image to process')
+        astro_progress.setStatus("error")
+        logging.error('Astrometry Processing - No image to process')
         return jsonify({"response": "pas ok :("})
     saving_folder = str(datetime.datetime.now()).replace(" ", "_").replace(":", "-")
 
     for filename in files:
-        progress.setStatus("processing " + filename)
-        logging.info('Optical Processing - Processing ' + filename)
+        astro_progress.setStatus("processing " + filename)
+        logging.info('Astrometry Processing - Processing ' + filename)
         try:
             name, extension = splitext(filename)
             names.append(name)
-            output = SubmitAstrometry(saving_folder, name, extension, progress)
+            output = SubmitAstrometry(saving_folder, name, extension, astro_progress)
         except Exception as e:
             logging.error(e)
-            progress.setStatus("error")
-            logging.error('Optical Processing - Error with astrometry.net')
+            astro_progress.setStatus("error")
+            logging.error('Astrometry Processing - Error with astrometry.net')
             return jsonify({"response": "pas ok :("})
         if output.__eq__("error"):
-            progress.setStatus("error")
-            logging.error('Optical Processing - Unable to process the image ' + filename + ' with astrometry.net')
+            astro_progress.setStatus("error")
+            logging.error('Astrometry Processing - Unable to process the image ' + filename + ' with astrometry.net')
             return jsonify({"response": "pas ok :("})
 
         try:
             result = RemoveGreenStars(saving_folder, name)
         except Exception as e:
             logging.error(e)
-            progress.setStatus("error")
-            logging.error('Optical Processing - Error while removing stars for the image ' + filename)
+            astro_progress.setStatus("error")
+            logging.error('Astrometry Processing - Error while removing stars for the image ' + filename)
             return jsonify({"response": "pas ok :("})
         if result.__eq__("nok"):
-            progress.setStatus("error")
-            logging.error('Optical Processing - Error while creating the mask for the image ' + filename)
+            astro_progress.setStatus("error")
+            logging.error('Astrometry Processing - Error while creating the mask for the image ' + filename)
             return jsonify({"response": "pas ok :("})
 
-        progress.setStatus(filename + " complete")
-        logging.info('Optical Processing - ' + filename + ' complete')
+        astro_progress.setStatus(filename + " complete")
+        logging.info('Astrometry Processing - ' + filename + ' complete')
 
-    progress.setStatus("success")
-    logging.info('Optical Processing - Complete')
+    astro_progress.setStatus("success")
+    logging.info('Astrometry Processing - Complete')
     return jsonify({"response": "ok", "folder": saving_folder, "names": names})
 
 
-# Check the optical processing progress
-@app.route('/check-progress')
-def check_progress():
-    global progress
-    status = progress.getStatus()
+# Check the Astrometry processing progress
+@app.route('/check-astrometry-progress')
+def check_astrometry_progress():
+    global astro_progress
+    status = astro_progress.getStatus()
     return jsonify({"status": status})
 
 
