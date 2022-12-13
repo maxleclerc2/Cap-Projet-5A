@@ -1,0 +1,42 @@
+{
+    "processing_configuration": {
+        "input_products": "testing",
+        "cloud_mask": null,
+        "klt_matching":{
+            "minDistance": 10,
+            "blocksize": 15,
+            "maxCorners": 20000,
+            "matching_winsize": 50,
+            "qualityLevel": 0.1,
+            "xStart": 0,
+            "N": 6000,
+            "grid_step" : 5,
+            "laplacian_kernel_size" : 5
+        },
+        "accuracy_analysis": {
+            "confidence_threshold" : 0.4,
+            "n_sigma" : 3.0,
+            "label" : "Test Accuracy analysis"
+        },
+        "plot_configuration": {
+            "xStart" : 0,
+            "factor" : 2,
+            "lim_dx" : 2,
+            "lim_dy" : 4,
+            "lim_nb_kp" : 500,
+            "scatter_max_number_of_points" : 10000
+        },
+        "outputs": {
+            "generate_intermediate_products": true,
+            "output_image_format": "tif",
+            "write_plots": true,
+            "write_keypoints": true,
+            "gqa_storage": "database",
+            "database_path": "/data/DB/GQA_results.db",
+            "coastlines": {
+                "HRV": "/data/REF/MSG-Coastlines/msg_0d_full_hrv.gif",
+                "default": "/data/REF/MSG-Coastlines/msg_0d_full_ir.gif"
+            }
+        }
+    }
+}
