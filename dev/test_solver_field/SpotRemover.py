@@ -1,7 +1,7 @@
 import numpy as np
 import skimage.exposure
 import cv2
-
+import matplotlib.pyplot as plt
 import os
 
 
@@ -52,7 +52,7 @@ class SpotRemover:
         mask = self.create_mask()
         
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (50, 50))
-        mask = cv2.morphologyEx(mask, cv2.MORPH_OPEN, kernel)
+        mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
 
         return cv2.bitwise_and(background_image, background_image, mask=mask)
 
@@ -112,22 +112,17 @@ class SpotRemover:
 
         try:
             if self.mask_type == "green":
-                # Load the image and extract the A channel (green or red)
                 _img_load = self._load_image(
                     path=self.green_red_image_path, mode="COLOR_BGR2LAB"
                 )
                 A = _img_load[:, :, 2]
             elif self.mask_type == "red":
-                # Load the image and extract the A channel (green or red)
                 _img_load = self._load_image(
                     path=self.green_red_image_path, mode="COLOR_BGR2LAB"
                 )
                 A = _img_load[:, :, 1]
-            
-            # Create a binary threshold using Otsu's method to separate the green or red areas
             thresh = cv2.threshold(A, 3, 255, cv2.THRESH_BINARY + cv2.THRESH_OTSU)[1]
 
-            # Apply a Gaussian blur to the thresholded image to smooth out the mask
             blur = cv2.GaussianBlur(
                 thresh, (0, 0), sigmaX=5, sigmaY=5, borderType=cv2.BORDER_DEFAULT
             )
@@ -135,7 +130,6 @@ class SpotRemover:
             raise be.__class__
 
         if blur is not None:
-            # Use skimage to rescale the intensity of the blurred thresholded image to create the final mask
             mask = skimage.exposure.rescale_intensity(
                 blur, in_range=(0, 255), out_range=(0, 255)
             ).astype(np.uint8)
@@ -156,6 +150,6 @@ if __name__ == "__main__":
     )
 
     file = new_object.merge_mask_and_orignal_image()
-    if file.__sizeof__() == 0:
-        new_object.save(file, "PNG")
-        new_object.save_to_tiff(file)
+    #plt.imshow(file)
+    new_object.save(file, "PNG")
+    new_object.save_to_tiff(file)
