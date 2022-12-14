@@ -4,7 +4,10 @@
 
 import os,sys
 import numpy as np
-import util.log as log
+
+package_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(os.path.join(package_dir, 'util'))
+import log as log
 
 class geometric_stat :
     def __init__(self, label, points, confidence_threshold=0.9):

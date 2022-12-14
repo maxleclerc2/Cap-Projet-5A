@@ -15,9 +15,11 @@ from math import floor, ceil
 from skimage.transform import warp
 from mpl_toolkits.axes_grid1 import make_axes_locatable
 
-from accuracy_analysis import plot_functions as plt_f
-from accuracy_analysis import accuracy_statistics as accuracy_statistics
-from accuracy_analysis import canvaz as cv
+package_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(os.path.join(package_dir, 'accuracy_analysis'))
+import plot_functions as plt_f
+import accuracy_statistics as accuracy_statistics
+import canvaz as cv
 
 class GdalRasterImage:
 

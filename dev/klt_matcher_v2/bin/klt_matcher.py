@@ -2,14 +2,16 @@ import os
 import sys
 import argparse
 
-try:
-    from klt_matcher.matcher import match
-except:
-    package_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)))
-    sys.path.append(os.path.join(package_dir, 'klt_matcher'))
-    from matcher import match
+#try:
+#    from klt_matcher.matcher import match
+#except:
+package_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(os.path.join(package_dir, 'klt_matcher'))
+from matcher import match
 
-from core.configuration import Configuration
+package_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(os.path.join(package_dir, 'core'))
+from configuration import Configuration
 
 # ANCIENS ARGUMENTS :
 # --mon E:\DATA\KLT_TEST_DATA\3122863_3423606_2020-02-10_2257_BGREN_Analytic_band2.tif --ref E:\DATA\KLT_TEST_DATA\3122863_3423606_2020-02-10_2257_BGREN_Analytic_band5.tif --resume True --out E:\DATA\KLT_TEST_DATA\OUT

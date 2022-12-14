@@ -9,8 +9,12 @@ import glob
 import json
 import logging
 import os
+import sys
 import re
-from core.errors import ConfigurationError
+
+package_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)))
+sys.path.append(os.path.join(package_dir, 'core'))
+from errors import ConfigurationError
 
 LOGGER = logging.getLogger()
 
