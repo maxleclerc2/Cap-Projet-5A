@@ -7,7 +7,7 @@ Each route defines the main logic of the app:
 """
 import datetime
 import os
-import time # TODO
+from argparse import Namespace
 
 from flask import (request, render_template, send_file, abort,
                    send_from_directory, jsonify)
@@ -21,11 +21,14 @@ from io import BytesIO
 import logging
 import zipfile
 
+from app.code.klt.core.errors import ConfigurationError
 from app.code.utils.api import TestAPI, GetSatInfoDW, GetSatInfoST
 from app.code.astrometry.astrometry import SubmitAstrometry
 from app.code.utils.classes import SatForm, AddSatForm, SatFile, AIForm, SatClass, ProcessImageForm
 from app.code.utils.functions import GetSatInfoFile, czml, create_plot_list, AddFilesToZip
 from app.code.utils.image_processing_progress import ImageProcessingProgress
+from app.code.klt.core.configuration import Configuration
+from app.code.klt.klt_matcher.matcher import match
 from app.code.astrometry.remover import RemoveGreenStars
 from app.code.threshold.threshold import GetTleInfo
 from app.code.ai.ai import GetSatInfoAI, GetPredAI, GetManeuversAI, PreparePlotsAI
@@ -54,6 +57,7 @@ ai_nb_sat = 0
 ai_SatNames = []
 ai_to_remove = False
 Prediction = None
+
 # KLT Processing progress
 global klt_progress
 # Astrometry Processing progress
@@ -797,10 +801,12 @@ def klt_processing_submit():
     global klt_progress
     logging.info('KLT Processing - Request received')
     klt_progress = ImageProcessingProgress()
+    files = []
+    names = []
 
     # Saving the uploaded file
     uploaded_file = request.files['fileUpload']
-    filename = secure_filename(uploaded_file.filename)
+    filename = secure_filename(uploaded_file.filename).lower()
     if filename != '':
         file_ext = splitext(filename)[1]
         if file_ext not in app.config['UPLOAD_EXTENSIONS']:
@@ -814,15 +820,95 @@ def klt_processing_submit():
         logging.error('KLT Processing - Unable to save file ' + filename)
         return jsonify({"response": "pas ok"})
 
-    time.sleep(2)
-    klt_progress.setStatus("test 1")
-    time.sleep(2)
-    klt_progress.setStatus("test 2")
-    time.sleep(2)
-    klt_progress.setStatus("success")
-    time.sleep(2)
+    klt_progress.setStatus("checking file")
+    uploaded_filename, uploaded_file_extension = splitext(filename)
+    if uploaded_file_extension.__eq__(".zip"):
+        logging.info('KLT Processing - ZIP file received, extracting content')
+        zipped = zipfile.ZipFile(join(app.config['UPLOAD_PATH'], filename))
+        extracted_path = join(app.config['UPLOAD_PATH'], uploaded_filename)
+        zipped.extractall(path=extracted_path)
 
-    return jsonify({"response": "ok", "folder": "bruh", "names": ["bruh"]})
+        for dirname, subdirs, zippped_files in walk(extracted_path):
+            for filename in zippped_files:
+                absname = abspath(join(dirname, filename))
+
+                secured_filename = secure_filename(filename).lower()
+                if secured_filename != '':
+                    file_ext = splitext(secured_filename)[1]
+                    if file_ext not in app.config['IMAGES_EXTENSIONS']:
+                        logging.warning('KLT Processing - Extracted file ' + filename + ' is not an image')
+                        continue
+                    try:
+                        os.remove(join(app.config['UPLOAD_PATH'], secured_filename))
+                    except Exception as e:
+                        logging.info('KLT Processing - No file to overwrite for ' + secured_filename)
+                    os.rename(absname, join(app.config['UPLOAD_PATH'], secured_filename))
+                    files.append(secured_filename)
+                    logging.info('KLT Processing - File saved as ' + secured_filename)
+                else:
+                    logging.warning('KLT Processing - Extracted file ' + filename + ' does not have a valid name')
+
+        logging.info('KLT Processing - Finished extracting ZIP file')
+    else:
+        klt_progress.setStatus("error")
+        logging.warning('KLT Processing - Single image to process')
+        return jsonify({"response": "pas ok"})
+
+    if len(files) < 2:
+        klt_progress.setStatus("error")
+        logging.error('KLT Processing - Not enough images to process')
+        return jsonify({"response": "pas ok :("})
+
+    saving_folder = str(datetime.datetime.now()).replace(" ", "_").replace(":", "-")
+
+    for index in range(len(files) - 1):
+        file1 = files[index]
+        file2 = files[index + 1]
+        klt_progress.setStatus('processing ' + splitext(file1)[0] + ' and ' + splitext(file2)[0])
+        logging.info('KLT Processing - Processing ' + splitext(file1)[0] + ' and ' + splitext(file2)[0] + ' files')
+        names.append(file1)
+
+        saving_path = "app/static/images/klt/" + saving_folder + "/" + splitext(file1)[0] + "_" + splitext(file2)[0] + "/"
+        os.makedirs(saving_path)
+
+        args = Namespace(mon=file1,
+                         ref=file2,
+                         mask=None,
+                         conf="app/code/klt/configuration/processing_configuration.json",
+                         out=saving_path,
+                         resume=False)
+
+        try:
+            # set up configuration :
+            conf = Configuration(args)
+        except ConfigurationError as e:
+            klt_progress.setStatus("error")
+            return jsonify({"response": "pas ok :("})
+
+        try:
+            # run matcher :
+            match(args.mon, args.ref, conf, args.resume, args.mask)
+        except Exception as e:
+            klt_progress.setStatus("cannot process " + splitext(file1)[0] + " and " + splitext(file2)[0])
+            logging.error('KLT Processing - Error while processing ' + splitext(file1)[0] + ' and ' + splitext(file2)[0])
+            logging.error(e)
+            with open(saving_path + "README.txt", 'w') as f:
+                f.write("Unable to finnish processing of " + splitext(file1)[0] + " and " + splitext(file2)[0])
+            continue
+    else:
+        names.append(files[len(files) - 1])
+
+    klt_progress.setStatus('moving files')
+    logging.info('KLT Processing - Moving files')
+    saving_path = "app/static/images/klt/" + saving_folder + "/inputs"
+    os.makedirs(saving_path)
+    for file in files:
+        filePath = join(app.config['UPLOAD_PATH'], file)
+        os.rename(filePath, saving_path + "/" + file)
+
+    klt_progress.setStatus("success")
+    logging.info('KLT Processing - Complete')
+    return jsonify({"response": "ok", "folder": saving_folder, "names": names})
 
 
 # Check the KLT processing progress
@@ -853,7 +939,7 @@ def astrometry_processing_submit():
 
     # Saving the uploaded file
     uploaded_file = request.files['fileUpload']
-    filename = secure_filename(uploaded_file.filename)
+    filename = secure_filename(uploaded_file.filename).lower()
     if filename != '':
         file_ext = splitext(filename)[1]
         if file_ext not in app.config['UPLOAD_EXTENSIONS']:
@@ -879,12 +965,12 @@ def astrometry_processing_submit():
             for filename in zippped_files:
                 absname = abspath(join(dirname, filename))
 
-                secured_filename = secure_filename(filename)
+                secured_filename = secure_filename(filename).lower()
                 if secured_filename != '':
                     file_ext = splitext(secured_filename)[1]
                     if file_ext not in app.config['IMAGES_EXTENSIONS']:
-                        logging.warn('Astrometry Processing - Extracted file ' + filename + ' is not an image')
-                        break
+                        logging.warning('Astrometry Processing - Extracted file ' + filename + ' is not an image')
+                        continue
                     try:
                         os.remove(join(app.config['UPLOAD_PATH'], secured_filename))
                     except Exception as e:
@@ -893,7 +979,7 @@ def astrometry_processing_submit():
                     files.append(secured_filename)
                     logging.info('Astrometry Processing - File saved as ' + secured_filename)
                 else:
-                    logging.warn('Astrometry Processing - Extracted file ' + filename + ' does not have a valid name')
+                    logging.warning('Astrometry Processing - Extracted file ' + filename + ' does not have a valid name')
 
         logging.info('Astrometry Processing - Finished extracting ZIP file')
     else:

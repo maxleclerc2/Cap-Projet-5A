@@ -156,7 +156,6 @@ form.onsubmit = async (e) => {
   //Send the proper header information along with the request
   xhr.setRequestHeader("enctype", "multipart/form-data");
 
-  console.log("avant post");
   xhr.onreadystatechange  = () => { // Call a function when the state changes.
     if (xhr.readyState === XMLHttpRequest.DONE && xhr.status === 200) {
       var result = JSON.parse(xhr.response);
