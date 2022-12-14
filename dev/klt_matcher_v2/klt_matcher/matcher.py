@@ -21,6 +21,7 @@ import plot_functions as plt_f
 import accuracy_statistics as accuracy_statistics
 import canvaz as cv
 
+
 class GdalRasterImage:
 
     def __init__(self, filename):
@@ -175,12 +176,19 @@ def KLT_Tracker(reference, imagedata, mask, maxCorners=20000, matching_winsize=2
         x0, y0, x1, y1, score = pointcheck2(x0, y0, x1, y1, score)
 
     # to dataframe
-    df = pd.DataFrame.from_dict({"x0": x0, "y0": y0, "x1": x1, "y1": y1, "dx": x1 - x0, "dy": y1 - y0, "score": score})
+    #df = pd.DataFrame.from_dict({"x0": x0, "y0": y0, "x1": x1, "y1": y1, "dx": x1 - x0, "dy": y1 - y0, "score": score})
 
-    d1 = df.iloc[df['dx'].argsort()[-3:]] # TODO
+    #d1 = df.iloc[df['dx'].argsort()[-3:]] # TODO
     # d2 = df.iloc[df['dy'].argsort()[-3:]]
 
-    return df, Ninit
+    #return df, Ninit
+    df = pd.DataFrame.from_dict({"x0": x0, "y0": y0, "dx": x1 - x0, "dy": y1 - y0, "score": score})
+
+    d1 = df.iloc[df['dx'].argsort()[-3:]]
+    #print(d1.head())
+
+
+    return df, d1, Ninit
 
 
 def mean_profile(val, points, N, binsize=20):
@@ -268,7 +276,7 @@ def main_KLT2(img_file, ref_file, mask_file, csv_file,
             # KLT - adapt maxCorners parameters to nb of valid pixels
             maxCorners = int(maxCorners_init * valid_pixels / N ** 2)
             #  to VD: maxCorners : static or dynamic parameters ?
-            points, Ninit = KLT_Tracker(ref_box, img_box,
+            allPoints,points, Ninit = KLT_Tracker(ref_box, img_box,
                                         mask_box, maxCorners=maxCorners,
                                         matching_winsize=matching_winsize,
                                         outliers=outliers)
@@ -286,13 +294,16 @@ def main_KLT2(img_file, ref_file, mask_file, csv_file,
                 csv_init = False
             else:
                 points.to_csv(csv_file, mode='a', sep=";", header=False)
+    
+    return allPoints
 
 
-def main_plot_mean_profile(csv_file, img_file, ref_file, outfile, conf):
+def main_plot_mean_profile(csv_file,allPoints, img_file, ref_file, outfile, conf):
     img = GdalRasterImage(img_file)
     ref = GdalRasterImage(ref_file)
     print(img.xSize, img.ySize)
-    points = pd.read_csv(csv_file, sep=";")
+    points =allPoints
+    pointsFilter = pd.read_csv(csv_file, sep=";")
 
     # Parameters :
     xStart = conf.plot_configuration["xStart"]
@@ -301,7 +312,7 @@ def main_plot_mean_profile(csv_file, img_file, ref_file, outfile, conf):
     lim_dy = conf.plot_configuration["lim_dy"]
     lim_nb_kp = conf.plot_configuration["lim_nb_kp"]
 
-    fig, axes = plt.subplots(2, 5,
+    fig, axes = plt.subplots(2, 6,
                              figsize=(15 * factor, 6 * factor),
                              constrained_layout=True)
 
@@ -422,20 +433,26 @@ def main_plot_mean_profile(csv_file, img_file, ref_file, outfile, conf):
     ax.text(0.025, 0.075, textstr, transform=ax.transAxes,
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
-    # empty figure
-    ax = axes[1, 4]
-    ax.set_axis_off()
-
+  
     # plot image
     ax = axes[0, 0]
     ax.set_title(os.path.basename(img_file)[0:36])
     ax.imshow(img.array, cmap='gray')  # , vmin=0, vmax=800)
+    ############ circle plot ############
+    
+    new_points =np.array( pointsFilter[['x0','y0']])
 
-    # plot ref
+    plot_detected_point(img_file =img_file, img= img,ax = axes[0, 5],Satpoints=new_points  ,is_ref =False)
+
+     # plot ref
     ax = axes[1, 0]
     ax.set_title(os.path.basename(ref_file)[0:36])
-    ax.imshow(ref.array, cmap='gray')  # , vmin=0, vmax=800)
-
+    ax.imshow(ref.array, cmap='gray') #, vmin=0, vmax=800)
+    
+    
+    ############ circle plot for img ref ############
+    plot_detected_point(img_file =ref_file,  img=ref, ax =axes[1, 5],is_ref = True)
+  
     # plt.suptitle('Inter-registration MSG4-MSG2 SEVIRI (2021-11-17 12:00/12:12)', fontsize=18)
     # plt.tight_layout()
     # plt.show()
@@ -443,13 +460,52 @@ def main_plot_mean_profile(csv_file, img_file, ref_file, outfile, conf):
     print(outfile)
     plt.close()
 
+def plot_detected_point(img_file, img, ax,Satpoints=None, is_ref =True):
+    
 
-def main_plot_histo(csv_file, img_file, ref_file,
+
+    if is_ref:
+        feature_params = dict( maxCorners = 800,
+                        qualityLevel = 0.012, 
+                        minDistance = 5,  
+                        blockSize = 5,
+                        gradientSize=3)
+        
+        p0 = cv2.goodFeaturesToTrack(img.array, mask = None, **feature_params)
+        ax.set_title("Key points present on the initial image")
+
+    else:
+        
+        p0= Satpoints
+        ax.set_title("Key point reduced to just the coordinates of the potential satellites ")
+   
+    if p0 is None:
+        print("no keypoints were found!")
+        return None
+    print (f'Number of detected keypoints = {p0.shape[0]}')
+
+    corners = np.zeros((p0.shape[0],2))
+    for i in range(corners.shape[0]):
+        corners[i] = p0[i][0]
+    
+    DISPLAY_RADIUS = 5
+    DISPLAY_COLOR  = (255, 0, 0)
+    im0color = cv2.cvtColor(img.array, cv2.COLOR_GRAY2BGR)
+    cornersInt = np.intp(np.round(corners)) # convert to integers used for indexing 
+    for i in cornersInt:
+        x, y = i.ravel()      # returns a contiguous flattened array
+        a = cv2.circle(im0color, (x, y), DISPLAY_RADIUS, DISPLAY_COLOR)
+        ax.imshow(a, cmap="gray")
+        
+    return p0
+
+
+def main_plot_histo(allpoints, img_file, ref_file,
                     output_directory, conf):
     img = GdalRasterImage(img_file)
     ref = GdalRasterImage(ref_file)
     print(img.xSize, img.ySize)
-    points = pd.read_csv(csv_file, sep=";")
+    points = allpoints
 
     # TODO: Parameters of histo analysis to be set :
     #       label of the study
@@ -743,15 +799,15 @@ def match(mon, ref, conf, RESUME, mask=None):
 
     # run matcher:
     if not RESUME:
-        main_KLT2(mon, ref, mask,
+        allPoints = main_KLT2(mon, ref, mask,
                   csv_file, conf,
                   outliers=True)
 
     # plot 1 - mean profiles:
-    main_plot_mean_profile(csv_file, mon, ref,
+    main_plot_mean_profile(csv_file,allPoints, mon, ref,
                            png_file, conf)
 
     # plot 2 - mean histogram:
     #TODO: p output path or set working directory path?
-    main_plot_histo(csv_file, mon, ref,
+    main_plot_histo(allPoints, mon, ref,
                     p, conf)
