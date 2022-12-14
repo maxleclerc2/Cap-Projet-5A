@@ -205,7 +205,7 @@ def mean_profile(val, points, N, binsize=20):
     return (pos, meanpos, npos)
 
 
-def main_KLT2(img_file, ref_file, mask_file, csv_file,
+def main_KLT2(img_file, ref_file, mask_file, csv_file,csv_file_allPoints,
               conf, outliers=True):
     """
     """
@@ -283,17 +283,22 @@ def main_KLT2(img_file, ref_file, mask_file, csv_file,
             points['x0'] = points['x0'] + xOff
             points['y0'] = points['y0'] + yOff
 
-            print("NbPoints(init/final): {} / {}".format(Ninit, len(points.dx)))
-            print("DX/DY(KLT) MEAN: {} / {}".format(points.dx.mean(), points.dy.mean()))
-            print("DX/DY(KLT) STD: {} / {}".format(points.dx.std(), points.dy.std()))
+            allPoints['x0'] = allPoints['x0'] + xOff
+            allPoints['y0'] = allPoints['y0'] + yOff
+
+            print("NbPoints(init/final): {} / {}".format(Ninit, len(allPoints.dx)))
+            print("DX/DY(KLT) MEAN: {} / {}".format(allPoints.dx.mean(), allPoints.dy.mean()))
+            print("DX/DY(KLT) STD: {} / {}".format(allPoints.dx.std(), allPoints.dy.std()))
             print()
 
             # write to csv
             if csv_init:
                 points.to_csv(csv_file, sep=";")
+                allPoints.to_csv(csv_file_allPoints, sep=";")
                 csv_init = False
             else:
                 points.to_csv(csv_file, mode='a', sep=";", header=False)
+                allPoints.to_csv(csv_file_allPoints, mode='a', sep=";", header=False)
     
     return allPoints
 
@@ -442,6 +447,8 @@ def main_plot_mean_profile(csv_file,allPoints, img_file, ref_file, outfile, conf
     
     new_points =np.array( pointsFilter[['x0','y0']])
 
+    #print(new_points)
+
     plot_detected_point(img_file =img_file, img= img,ax = axes[0, 5],Satpoints=new_points  ,is_ref =False)
 
      # plot ref
@@ -484,10 +491,13 @@ def plot_detected_point(img_file, img, ax,Satpoints=None, is_ref =True):
         return None
     print (f'Number of detected keypoints = {p0.shape[0]}')
 
-    corners = np.zeros((p0.shape[0],2))
+    ''' corners = np.zeros((p0.shape[0],2))
     for i in range(corners.shape[0]):
         corners[i] = p0[i][0]
-    
+    '''
+    corners = p0
+    #print(corners)
+
     DISPLAY_RADIUS = 5
     DISPLAY_COLOR  = (255, 0, 0)
     im0color = cv2.cvtColor(img.array, cv2.COLOR_GRAY2BGR)
@@ -792,15 +802,19 @@ def match(mon, ref, conf, RESUME, mask=None):
     mon_name = os.path.splitext(os.path.basename(mon))[0]
     ref_name = os.path.splitext(os.path.basename(ref))[0]
     p = conf.values['output_directory']['path']
+    csv_file_allPoints = os.path.join(p,
+                            f'KLT_matcher__AllPoints_{mon_name}_{ref_name}.csv')
     csv_file = os.path.join(p,
                             f'KLT_matcher_{mon_name}_{ref_name}.csv')
+
     png_file = os.path.join(p,
                             csv_file.replace('.csv', '.png'))
 
     # run matcher:
     if not RESUME:
         allPoints = main_KLT2(mon, ref, mask,
-                  csv_file, conf,
+                  csv_file ,csv_file_allPoints,
+                   conf,
                   outliers=True)
 
     # plot 1 - mean profiles:
