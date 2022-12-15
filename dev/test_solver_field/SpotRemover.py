@@ -49,12 +49,17 @@ class SpotRemover:
         background_image = self._load_image(
             path=self.raw_image_path, mode="COLOR_BGR2RGB"
         )
+        background_image_w = self._load_image(
+            path=self.green_red_image_path, mode="COLOR_BGR2RGB"
+        )
         mask = self.create_mask()
         
         kernel = cv2.getStructuringElement(cv2.MORPH_ELLIPSE, (50, 50))
         mask = cv2.morphologyEx(mask, cv2.MORPH_CLOSE, kernel)
+        
+        hsk = cv2.bitwise_xor(background_image_w, background_image, mask=mask)
 
-        return cv2.bitwise_and(background_image, background_image, mask=mask)
+        return cv2.bitwise_xor(background_image_w, background_image, mask=mask)
 
     def _get_base_file_name(self) -> str:
         """
@@ -140,16 +145,69 @@ class SpotRemover:
         return mask
 
 
+    
+def remove_red_circles(img):
+    for x in range(img.shape[0]):
+        for y in range(img.shape[1]):
+            # Get the BGR values for the current pixel
+            b, g, r = img[x, y]
+
+            # If the pixel is green (i.e. the green value is greater than the red and blue values), set its value to 0
+            if r > g and r > b:
+                img[x, y] = (0, 0, 0)
+                
+            # for residuals blue spots after invert
+            #if b > g and b > g:
+            #    img[x, y] = (0, 0, 0) 
+
+    return img
+
+
+def rm_green_spot(image_file, raw_img):
+    img = cv2.imread(image_file)
+
+    mask = np.zeros_like(img)
+    for x in range(img.shape[0]):
+        for y in range(img.shape[1]):
+            b, g, r = img[x, y]
+            if g > r and g > b:
+                mask[x, y] = (255, 255, 255)
+    new_img = cv2.bitwise_and(img, mask)
+    kernel = np.ones((50, 50), np.uint8)
+    invert_img_dilation = ~cv2.dilate(
+        new_img, kernel, iterations=1
+    )  # cv2.morphologyEx(new_img, cv2.MORPH_GRADIENT, kernel)
+
+    cv2.imwrite("invert_img_dilation.png", invert_img_dilation)
+    kernel2 = np.ones((10, 10), np.uint8)
+    img_dilation = cv2.erode(invert_img_dilation, kernel2, iterations=1)
+
+    bg = cv2.imread(raw_img) # background image.
+    bg = cv2.cvtColor(bg, cv2.COLOR_BGR2RGB)
+
+    fuz = cv2.bitwise_and(bg, img_dilation)
+    
+    cv2.imwrite("OUTPUT_IMAGE_BEFORE_POST_CLEANING.png", fuz)
+    fuz_without_red_circles = remove_red_circles(fuz)
+
+    # Save the new image in TIFF format
+    cv2.imwrite("OUTPUT_IMAGE.png", fuz_without_red_circles)
+
 
 if __name__ == "__main__":
-
+    """
     new_object = SpotRemover(
-        green_red_image_path="7295761_red_green.png",
+        green_red_image_path="green_pixels.png",
         original_image_path="kaEC6_-_modified.jpg",
-        mask_type="green",
+        mask_type="red",
     )
-
-    file = new_object.merge_mask_and_orignal_image()
+    """
+    #file = new_object.merge_mask_and_orignal_image()
     #plt.imshow(file)
-    new_object.save(file, "PNG")
-    new_object.save_to_tiff(file)
+    #new_object.save(file, "PNG")
+    #new_object.save_to_tiff(file)
+    #remove_green_pixels2("7295761_red_green.png", "kaEC6_-_modified.jpg")
+    
+    #Build_MASK("7295761_red_green.png")
+    rm_green_spot("7295761_red_green.png", "kaEC6_-_modified.jpg")
+    #remove_green_pixels("7295761_red_green.png")
