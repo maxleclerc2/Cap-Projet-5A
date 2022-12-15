@@ -120,28 +120,24 @@
                         </div>
                         <br>
                         <br>
+                        <h3>Original</h3>
+                        <img id="original" src="/">
+                        <br>
+                        <br>
+                        <h3>Extraction</h3>
+                        <img id="extraction" src="/">
+                        <br>
+                        <br>
                         <h3>Red Green</h3>
                         <img id="red-green" src="/">
                         <br>
                         <br>
-                        <h3>Thresh</h3>
-                        <img id="thresh" src="/">
-                        <br>
-                        <br>
-                        <h3>Mask</h3>
-                        <img id="mask" src="/">
+                        <h3>Preprocessing</h3>
+                        <img id="preprocessing" src="/">
                         <br>
                         <br>
                         <h3>Result</h3>
                         <img id="result" src="/">
-                        <br>
-                        <br>
-                        <h3>Blur</h3>
-                        <img id="blur" src="/">
-                        <br>
-                        <br>
-                        <h3>Mask Red Spots</h3>
-                        <img id="mask-red" src="/">
                         <br>
                         <br>
                         <div class="BoutonMilieu">
@@ -190,12 +186,11 @@ form.onsubmit = async (e) => {
         document.getElementById('dl-button-1').href = '/export&astrometry=' + result.folder
         document.getElementById('dl-button-2').href = '/export&astrometry=' + result.folder
 
-        document.getElementById('red-green').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/red-green.png';
-        document.getElementById('thresh').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_thresh.png';
-        document.getElementById('mask').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_mask.png';
-        document.getElementById('result').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_antialiased.png';
-        document.getElementById('blur').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_greenscreen_blur.png';
-        document.getElementById('mask-red').src = '/static/images/op/' + result.folder + '/' + result.names[0] + '/make_mask_red_spots.png';
+        document.getElementById('original').src = '/static/images/astrometry/' + result.folder + '/' + result.names[0] + '/original' + result.extension;
+        document.getElementById('extraction').src = '/static/images/astrometry/' + result.folder + '/' + result.names[0] + '/extraction.png';
+        document.getElementById('red-green').src = '/static/images/astrometry/' + result.folder + '/' + result.names[0] + '/red-green.png';
+        document.getElementById('preprocessing').src = '/static/images/astrometry/' + result.folder + '/' + result.names[0] + '/preprocessing.png';
+        document.getElementById('result').src = '/static/images/astrometry/' + result.folder + '/' + result.names[0] + '/result.png';
 
         document.getElementById('results').style.display = "inline-block";
       }

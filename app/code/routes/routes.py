@@ -21,6 +21,7 @@ from io import BytesIO
 import logging
 import zipfile
 
+from app.code.astrometry.SpotRemover import RemoveGreenStars
 from app.code.klt.core.errors import ConfigurationError
 from app.code.utils.api import TestAPI, GetSatInfoDW, GetSatInfoST
 from app.code.astrometry.astrometry import SubmitAstrometry
@@ -29,9 +30,9 @@ from app.code.utils.functions import GetSatInfoFile, czml, create_plot_list, Add
 from app.code.utils.image_processing_progress import ImageProcessingProgress
 from app.code.klt.core.configuration import Configuration
 from app.code.klt.klt_matcher.matcher import match
-from app.code.astrometry.remover import RemoveGreenStars
 from app.code.threshold.threshold import GetTleInfo
 from app.code.ai.ai import GetSatInfoAI, GetPredAI, GetManeuversAI, PreparePlotsAI
+
 # TODO from app.code.proximity.proximity import GetTleProximity, DetectProximity
 # TODO from app.code.space_weather.SpaceWeather import run as SP_run
 
@@ -167,10 +168,10 @@ def ai():
 
         # Path to the uploaded file
         filePath = app.config['UPLOAD_PATH'] + "\\" + filename
-        
+
         uploaded_file2 = request.files['fileUpload2']
         filename2 = secure_filename(uploaded_file2.filename)
-        
+
         # Search from local files
         if filename2 != '' and SatName == '':
             logging.info('AI - Process from files')
@@ -184,7 +185,7 @@ def ai():
             filePath2 = app.config['UPLOAD_PATH'] + "\\" + filename2
 
             ai_SatInfo.append(GetSatInfoFile(filePath2))
-            
+
         elif filename2 == '' and SatName != '':
             # If the end date is before the start date, we switch them
             if DateBegin > DateEnd:
@@ -238,11 +239,11 @@ def ai():
             if ai_SatInfo[0].ERROR_MESSAGE:
                 logging.error('AI - %s', ai_SatInfo[0].ERROR_MESSAGE)
                 return render_template('error.html', errorMessage=ai_SatInfo[0].ERROR_MESSAGE)
-        
+
         else:
             logging.error('AI - Form not filled')
             return render_template('error.html', errorMessage='Please fill the form')
-        
+
         # We have 1 satellite in our list
         ai_nb_sat += 1
 
@@ -668,7 +669,7 @@ def threshold():
             create_plot_list(threshold_SatInfo, threshold_nb_sat, "threshold")
             if threshold_SatInfo[0].VISU == 'yes':
                 # Generate the CZML file only if needed
-                 czml(threshold_SatInfo, threshold_nb_sat, "threshold")
+                czml(threshold_SatInfo, threshold_nb_sat, "threshold")
 
             logging.info('Threshold - Complete')
     except Exception as e:
@@ -721,7 +722,7 @@ def export(request):
     path_klt = abspath("app/static/images/klt")  # Astrometry results
     path_astrometry = abspath("app/static/images/astrometry")  # Astrometry results
 
-    path_training_file = abspath("app/uploads/") # Machine Learning training file
+    path_training_file = abspath("app/uploads/")  # Machine Learning training file
     data = BytesIO()
 
     # Generate the .zip
@@ -866,9 +867,10 @@ def klt_processing_submit():
         file2 = files[index + 1]
         klt_progress.setStatus('processing ' + splitext(file1)[0] + ' and ' + splitext(file2)[0])
         logging.info('KLT Processing - Processing ' + splitext(file1)[0] + ' and ' + splitext(file2)[0] + ' files')
-        names.append(file1)
+        names.append(splitext(file1)[0] + "_" + splitext(file2)[0])
 
-        saving_path = "app/static/images/klt/" + saving_folder + "/" + splitext(file1)[0] + "_" + splitext(file2)[0] + "/"
+        saving_path = "app/static/images/klt/" + saving_folder + "/" + splitext(file1)[0] + "_" + splitext(file2)[
+            0] + "/"
         os.makedirs(saving_path)
 
         args = Namespace(mon=file1,
@@ -890,7 +892,8 @@ def klt_processing_submit():
             match(args.mon, args.ref, conf, args.resume, args.mask)
         except Exception as e:
             klt_progress.setStatus("cannot process " + splitext(file1)[0] + " and " + splitext(file2)[0])
-            logging.error('KLT Processing - Error while processing ' + splitext(file1)[0] + ' and ' + splitext(file2)[0])
+            logging.error(
+                'KLT Processing - Error while processing ' + splitext(file1)[0] + ' and ' + splitext(file2)[0])
             logging.error(e)
             with open(saving_path + "README.txt", 'w') as f:
                 f.write("Unable to finnish processing of " + splitext(file1)[0] + " and " + splitext(file2)[0])
@@ -979,7 +982,8 @@ def astrometry_processing_submit():
                     files.append(secured_filename)
                     logging.info('Astrometry Processing - File saved as ' + secured_filename)
                 else:
-                    logging.warning('Astrometry Processing - Extracted file ' + filename + ' does not have a valid name')
+                    logging.warning(
+                        'Astrometry Processing - Extracted file ' + filename + ' does not have a valid name')
 
         logging.info('Astrometry Processing - Finished extracting ZIP file')
     else:
@@ -996,11 +1000,14 @@ def astrometry_processing_submit():
         return jsonify({"response": "pas ok :("})
     saving_folder = str(datetime.datetime.now()).replace(" ", "_").replace(":", "-")
 
+    first_file_ext = ""
     for filename in files:
         astro_progress.setStatus("processing " + filename)
         logging.info('Astrometry Processing - Processing ' + filename)
         try:
             name, extension = splitext(filename)
+            if filename.__eq__(files[0]):
+                first_file_ext = extension
             names.append(name)
             output = SubmitAstrometry(saving_folder, name, extension, astro_progress)
         except Exception as e:
@@ -1014,7 +1021,7 @@ def astrometry_processing_submit():
             return jsonify({"response": "pas ok :("})
 
         try:
-            result = RemoveGreenStars(saving_folder, name)
+            result = RemoveGreenStars(saving_folder, name, extension, astro_progress)
         except Exception as e:
             logging.error(e)
             astro_progress.setStatus("error")
@@ -1030,7 +1037,7 @@ def astrometry_processing_submit():
 
     astro_progress.setStatus("success")
     logging.info('Astrometry Processing - Complete')
-    return jsonify({"response": "ok", "folder": saving_folder, "names": names})
+    return jsonify({"response": "ok", "folder": saving_folder, "names": names, "extension": first_file_ext})
 
 
 # Check the Astrometry processing progress

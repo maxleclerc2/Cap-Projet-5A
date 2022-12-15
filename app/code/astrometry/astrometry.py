@@ -553,11 +553,14 @@ def SubmitAstrometry(saving_folder, filename, file_extension, progress):
         time.sleep(5)
 
     jobId = str(j)
-    retrieve_url = "https://nova.astrometry.net/red_green_image_full/"
+    retrieve_red_green_url = "https://nova.astrometry.net/red_green_image_full/"
+    retrieve_extraction_url = "https://nova.astrometry.net/extraction_image_full/"
 
     os.makedirs(saving_path)
     os.rename(filePath, saving_path + "/original" + file_extension)
-    urllib.request.urlretrieve(retrieve_url + jobId, saving_path + "/red-green.png")
-    progress.setStatus("saved red-green pattern file of " + filename)
+    progress.setStatus("saving red-green pattern file of " + filename)
+    urllib.request.urlretrieve(retrieve_red_green_url + jobId, saving_path + "/red-green.png")
+    progress.setStatus("saving extraction pattern file of " + filename)
+    urllib.request.urlretrieve(retrieve_extraction_url + jobId, saving_path + "/extraction.png")
 
     return "ok"
