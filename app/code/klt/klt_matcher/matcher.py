@@ -22,6 +22,7 @@ import app.code.klt.accuracy_analysis.plot_functions as plt_f
 import app.code.klt.accuracy_analysis.accuracy_statistics as accuracy_statistics
 import app.code.klt.accuracy_analysis.canvaz as cv
 
+
 class GdalRasterImage:
 
     def __init__(self, filename):
@@ -176,17 +177,16 @@ def KLT_Tracker(reference, imagedata, mask, maxCorners=20000, matching_winsize=2
         x0, y0, x1, y1, score = pointcheck2(x0, y0, x1, y1, score)
 
     # to dataframe
-    #df = pd.DataFrame.from_dict({"x0": x0, "y0": y0, "x1": x1, "y1": y1, "dx": x1 - x0, "dy": y1 - y0, "score": score})
+    # df = pd.DataFrame.from_dict({"x0": x0, "y0": y0, "x1": x1, "y1": y1, "dx": x1 - x0, "dy": y1 - y0, "score": score})
 
-    #d1 = df.iloc[df['dx'].argsort()[-3:]] # TODO
+    # d1 = df.iloc[df['dx'].argsort()[-3:]] # TODO
     # d2 = df.iloc[df['dy'].argsort()[-3:]]
 
-    #return df, Ninit
+    # return df, Ninit
     df = pd.DataFrame.from_dict({"x0": x0, "y0": y0, "dx": x1 - x0, "dy": y1 - y0, "score": score})
 
     d1 = df.iloc[df['dx'].argsort()[-3:]]
-    #print(d1.head())
-
+    # print(d1.head())
 
     return df, d1, Ninit
 
@@ -205,7 +205,7 @@ def mean_profile(val, points, N, binsize=20):
     return (pos, meanpos, npos)
 
 
-def main_KLT2(img_file, ref_file, mask_file, csv_file,
+def main_KLT2(img_file, ref_file, mask_file, csv_file, csv_file_allPoints,
               conf, outliers=True):
     """
     """
@@ -276,33 +276,38 @@ def main_KLT2(img_file, ref_file, mask_file, csv_file,
             # KLT - adapt maxCorners parameters to nb of valid pixels
             maxCorners = int(maxCorners_init * valid_pixels / N ** 2)
             #  to VD: maxCorners : static or dynamic parameters ?
-            allPoints,points, Ninit = KLT_Tracker(ref_box, img_box,
-                                                  mask_box, maxCorners=maxCorners,
-                                                  matching_winsize=matching_winsize,
-                                                  outliers=outliers)
+            allPoints, points, Ninit = KLT_Tracker(ref_box, img_box,
+                                                   mask_box, maxCorners=maxCorners,
+                                                   matching_winsize=matching_winsize,
+                                                   outliers=outliers)
             points['x0'] = points['x0'] + xOff
             points['y0'] = points['y0'] + yOff
 
-            print("NbPoints(init/final): {} / {}".format(Ninit, len(points.dx)))
-            print("DX/DY(KLT) MEAN: {} / {}".format(points.dx.mean(), points.dy.mean()))
-            print("DX/DY(KLT) STD: {} / {}".format(points.dx.std(), points.dy.std()))
+            allPoints['x0'] = allPoints['x0'] + xOff
+            allPoints['y0'] = allPoints['y0'] + yOff
+
+            print("NbPoints(init/final): {} / {}".format(Ninit, len(allPoints.dx)))
+            print("DX/DY(KLT) MEAN: {} / {}".format(allPoints.dx.mean(), allPoints.dy.mean()))
+            print("DX/DY(KLT) STD: {} / {}".format(allPoints.dx.std(), allPoints.dy.std()))
             print()
 
             # write to csv
             if csv_init:
                 points.to_csv(csv_file, sep=";")
+                allPoints.to_csv(csv_file_allPoints, sep=";")
                 csv_init = False
             else:
                 points.to_csv(csv_file, mode='a', sep=";", header=False)
+                allPoints.to_csv(csv_file_allPoints, mode='a', sep=";", header=False)
 
     return allPoints
 
 
-def main_plot_mean_profile(csv_file,allPoints, img_file, ref_file, outfile, conf):
+def main_plot_mean_profile(csv_file, allPoints, img_file, ref_file, outfile, conf):
     img = GdalRasterImage(img_file)
     ref = GdalRasterImage(ref_file)
     print(img.xSize, img.ySize)
-    points =allPoints
+    points = allPoints
     pointsFilter = pd.read_csv(csv_file, sep=";")
 
     # Parameters :
@@ -433,25 +438,25 @@ def main_plot_mean_profile(csv_file,allPoints, img_file, ref_file, outfile, conf
     ax.text(0.025, 0.075, textstr, transform=ax.transAxes,
             bbox=dict(boxstyle='round', facecolor='white', alpha=0.8))
 
-
     # plot image
     ax = axes[0, 0]
     ax.set_title(os.path.basename(img_file)[0:36])
     ax.imshow(img.array, cmap='gray')  # , vmin=0, vmax=800)
     ############ circle plot ############
 
-    new_points =np.array( pointsFilter[['x0','y0']])
+    new_points = np.array(pointsFilter[['x0', 'y0']])
 
-    plot_detected_point(img_file =img_file, img= img,ax = axes[0, 5],Satpoints=new_points  ,is_ref =False)
+    # print(new_points)
+
+    plot_detected_point(img_file=img_file, img=img, ax=axes[0, 5], Satpoints=new_points, is_ref=False)
 
     # plot ref
     ax = axes[1, 0]
     ax.set_title(os.path.basename(ref_file)[0:36])
-    ax.imshow(ref.array, cmap='gray') #, vmin=0, vmax=800)
-
+    ax.imshow(ref.array, cmap='gray')  # , vmin=0, vmax=800)
 
     ############ circle plot for img ref ############
-    plot_detected_point(img_file =ref_file,  img=ref, ax =axes[1, 5],is_ref = True)
+    plot_detected_point(img_file=ref_file, img=ref, ax=axes[1, 5], is_ref=True)
 
     # plt.suptitle('Inter-registration MSG4-MSG2 SEVIRI (2021-11-17 12:00/12:12)', fontsize=18)
     # plt.tight_layout()
@@ -460,40 +465,41 @@ def main_plot_mean_profile(csv_file,allPoints, img_file, ref_file, outfile, conf
     print(outfile)
     plt.close()
 
-def plot_detected_point(img_file, img, ax,Satpoints=None, is_ref =True):
 
-
-
+def plot_detected_point(img_file, img, ax, Satpoints=None, is_ref=True):
     if is_ref:
-        feature_params = dict( maxCorners = 800,
-                               qualityLevel = 0.012,
-                               minDistance = 5,
-                               blockSize = 5,
-                               gradientSize=3)
+        feature_params = dict(maxCorners=800,
+                              qualityLevel=0.012,
+                              minDistance=5,
+                              blockSize=5,
+                              gradientSize=3)
 
-        p0 = cv2.goodFeaturesToTrack(img.array, mask = None, **feature_params)
+        p0 = cv2.goodFeaturesToTrack(img.array, mask=None, **feature_params)
         ax.set_title("Key points present on the initial image")
 
     else:
 
-        p0= Satpoints
+        p0 = Satpoints
         ax.set_title("Key point reduced to just the coordinates of the potential satellites ")
 
     if p0 is None:
         print("no keypoints were found!")
         return None
-    print (f'Number of detected keypoints = {p0.shape[0]}')
+    print(f'Number of detected keypoints = {p0.shape[0]}')
 
-    corners = np.zeros((p0.shape[0],2))
+    ''' corners = np.zeros((p0.shape[0],2))
     for i in range(corners.shape[0]):
         corners[i] = p0[i][0]
+    '''
+    corners = p0
+    # print(corners)
 
     DISPLAY_RADIUS = 5
-    DISPLAY_COLOR  = (255, 0, 0)
+    DISPLAY_COLOR = (255, 0, 0)
     im0color = cv2.cvtColor(img.array, cv2.COLOR_GRAY2BGR)
-    cornersInt = np.intp(np.round(corners)) # convert to integers used for indexing
+    cornersInt = np.intp(np.round(corners))  # convert to integers used for indexing
     for i in cornersInt:
-        x, y = i.ravel()      # returns a contiguous flattened array
+        x, y = i.ravel()  # returns a contiguous flattened array
         a = cv2.circle(im0color, (x, y), DISPLAY_RADIUS, DISPLAY_COLOR)
         ax.imshow(a, cmap="gray")
 
@@ -523,52 +529,50 @@ def main_plot_histo(allpoints, img_file, ref_file,
                  'file_name': 'histy.png'}
            }
 
-    #prepare st :
+    # prepare st :
     st = accuracy_statistics.geometric_stat(label, points)
 
-    #TODO : total pixel minus background
+    # TODO : total pixel minus background
     # (compute number of bckg pixels and substract to img.xSize * img.ySize
-    tt = img.xSize * img.ySize    #total pixel minus background
+    tt = img.xSize * img.ySize  # total pixel minus background
     st.compute_stats(confidence_threshold, n_sigma, tt)
     [ch1, chx, chy] = st.display_results()
     st.update_statistique_file([label], chx, chy,
                                os.path.join(output_directory, 'correl_res.txt'))
 
-    #TODO : set dynamic value for px
+    # TODO : set dynamic value for px
     px = 3.125
 
-    #Generate histogram figures and save to png :
+    # Generate histogram figures and save to png :
     for rec in dic.items():
-
         out_image_file = os.path.join(output_directory, rec[1]['file_name'])
-        plt_f.hist_vector(st, dir =rec[1]['dir'],
-                          pixelResolution = px,
-                          confidence = confidence_threshold,
-                          title = rec[1]['label'],
-                          out_image_file = out_image_file)
-        OUT.append( out_image_file)
+        plt_f.hist_vector(st, dir=rec[1]['dir'],
+                          pixelResolution=px,
+                          confidence=confidence_threshold,
+                          title=rec[1]['label'],
+                          out_image_file=out_image_file)
+        OUT.append(out_image_file)
 
-    #Generate scatter figure and save to png :
+    # Generate scatter figure and save to png :
     #  Plot Scatter :
     out_image_file = os.path.join(output_directory, 'ce90.png')
     title_label = 'Circular Error Plot @ 90 percentile'
     plt_f.scatter_vector(st,
-                         pixelResolution = px,
-                         confidence = confidence_threshold,
-                         title = title_label,
-                         out_image_file = out_image_file)
+                         pixelResolution=px,
+                         confidence=confidence_threshold,
+                         title=title_label,
+                         out_image_file=out_image_file)
     OUT.append(out_image_file)
 
-    #Open the three images and create a canvas :
-    qa_f= os.path.join(output_directory, label+'_C'+str(np.int(confidence_threshold*100))+'_qa.png')
+    # Open the three images and create a canvas :
+    qa_f = os.path.join(output_directory, label + '_C' + str(np.int(confidence_threshold * 100)) + '_qa.png')
 
-    #Create an single image including all graphic images
-    figure_title = label+'_C='+str(confidence_threshold)
+    # Create an single image including all graphic images
+    figure_title = label + '_C=' + str(confidence_threshold)
     IN_IMAGES = [OUT[0], OUT[2], OUT[1]]
 
-    cv.canvaz(IN_IMAGES,qa_f,
-              fig_label= figure_title)
-
+    cv.canvaz(IN_IMAGES, qa_f,
+              fig_label=figure_title)
 
 
 def print_stat(arr, name=""):
@@ -794,22 +798,24 @@ def match(mon, ref, conf, RESUME, mask=None):
     ref = join(app.config['UPLOAD_PATH'], ref)
     ref_name = os.path.splitext(os.path.basename(ref))[0]
     p = conf.values['output_directory']['path']
+    csv_file_allPoints = os.path.join(p,
+                                      f'KLT_matcher_AllPoints_{mon_name}_{ref_name}.csv')
     csv_file = os.path.join(p,
-                            f'KLT_matcher_{mon_name}_{ref_name}.csv')
+                            f'KLT_matcher_KeyPoints_{mon_name}_{ref_name}.csv')
     png_file = os.path.join(p,
                             f'KLT_matcher_{mon_name}_{ref_name}.png')
 
     # run matcher:
     if not RESUME:
         allPoints = main_KLT2(mon, ref, mask,
-                              csv_file, conf,
-                              outliers=True)
+                              csv_file, csv_file_allPoints,
+                              conf, outliers=True)
 
     # plot 1 - mean profiles:
-    main_plot_mean_profile(csv_file,allPoints, mon, ref,
+    main_plot_mean_profile(csv_file, allPoints, mon, ref,
                            png_file, conf)
 
     # plot 2 - mean histogram:
-    #TODO: p output path or set working directory path?
+    # TODO: p output path or set working directory path?
     main_plot_histo(allPoints, mon, ref,
                     p, conf)

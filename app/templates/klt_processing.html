@@ -121,6 +121,11 @@
                             <a id="dl-button-1" href="#" class="btn btn-add">Download results</a>
                         </div>
                         <br>
+                        <br>
+                        <h3>Result</h3>
+                        <img id="result-klt" src="/">
+                        <br>
+                        <br>
                         <div class="BoutonMilieu">
                             <a id="dl-button-2" href="#" class="btn btn-add">Download results</a>
                         </div>
@@ -166,6 +171,8 @@ form.onsubmit = async (e) => {
 
         document.getElementById('dl-button-1').href = '/export&klt=' + result.folder
         document.getElementById('dl-button-2').href = '/export&klt=' + result.folder
+
+        document.getElementById('result-klt').src = '/static/images/klt/' + result.folder + '/' + result.names[0] + '/KLT_matcher_' + result.names[0] + '.png';
 
         document.getElementById('results').style.display = "inline-block";
       }
