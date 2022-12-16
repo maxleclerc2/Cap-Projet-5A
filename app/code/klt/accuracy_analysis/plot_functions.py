@@ -4,6 +4,8 @@ import sys
 from os.path import basename
 from osgeo import gdal
 import numpy as np
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from scipy import stats
 

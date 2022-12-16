@@ -111,6 +111,8 @@
                     </form>
                     <br>
                     <h2 id="progress"></h2>
+                    <h2 id="cause"></h2>
+                    <h2 id="warning"></h2>
                     <br>
                     <br>
                     <div id="results" style="display:none">
@@ -165,6 +167,9 @@ var form = document.getElementById('uploader');
 form.onsubmit = async (e) => {
   e.preventDefault();
   document.getElementById('results').style.display = "none";
+  document.getElementById('progress').innerHTML = "";
+  document.getElementById('cause').innerHTML = "";
+  document.getElementById('warning').innerHTML = "";
   const form = e.currentTarget;
   const formData = new FormData(form);
   const url = 'http://localhost:5000/astrometry-processing-submit';
@@ -186,11 +191,11 @@ form.onsubmit = async (e) => {
         document.getElementById('dl-button-1').href = '/export&astrometry=' + result.folder
         document.getElementById('dl-button-2').href = '/export&astrometry=' + result.folder
 
-        document.getElementById('original').src = '/static/images/astrometry/' + result.folder + '/' + result.names[0] + '/original' + result.extension;
-        document.getElementById('extraction').src = '/static/images/astrometry/' + result.folder + '/' + result.names[0] + '/extraction.png';
-        document.getElementById('red-green').src = '/static/images/astrometry/' + result.folder + '/' + result.names[0] + '/red-green.png';
-        document.getElementById('preprocessing').src = '/static/images/astrometry/' + result.folder + '/' + result.names[0] + '/preprocessing.png';
-        document.getElementById('result').src = '/static/images/astrometry/' + result.folder + '/' + result.names[0] + '/result.png';
+        document.getElementById('original').src = '/static/images/astrometry/' + result.folder + '/inputs/' + result.names[0] + result.extension;
+        document.getElementById('extraction').src = '/static/images/astrometry/' + result.folder + '/outputs/' + result.names[0] + '/extraction.png';
+        document.getElementById('red-green').src = '/static/images/astrometry/' + result.folder + '/outputs/' + result.names[0] + '/red-green.png';
+        document.getElementById('preprocessing').src = '/static/images/astrometry/' + result.folder + '/outputs/' + result.names[0] + '/preprocessing.png';
+        document.getElementById('result').src = '/static/images/astrometry/' + result.folder + '/outputs/' + result.names[0] + '/result.png';
 
         document.getElementById('results').style.display = "inline-block";
       }
@@ -200,6 +205,8 @@ form.onsubmit = async (e) => {
 
   const progress_url = 'http://localhost:5000/check-astrometry-progress';
   var finished = new Boolean(false);
+  var last_message = "";
+  var counter = 0
 
   while (finished == false) {
     var request = new XMLHttpRequest();
@@ -210,12 +217,44 @@ form.onsubmit = async (e) => {
             var result = JSON.parse(request.response);
 
             document.getElementById('progress').innerHTML = result.status;
+            document.getElementById('cause').innerHTML = result.cause;
+
+            if (last_message == result.status) {
+                counter++;
+
+                if (counter >= 120) {
+                    document.getElementById('warning').innerHTML = "Processing takes a long time. Is the application still running?";
+                }
+            } else {
+                document.getElementById('warning').innerHTML = "";
+                last_message = result.status;
+                counter = 0;
+            }
 
             if (result.status == "error" || result.status == "success") {
+              document.getElementById('warning').innerHTML = "";
+              document.getElementById('cause').innerHTML = result.cause;
               finished = new Boolean(true);
+            }
+        } else {
+            counter++;
+
+            if (counter >= 10) {
+                document.getElementById('warning').innerHTML = "Server not responding. Stopping request";
+                finished = new Boolean(true);
             }
         }
     }
+
+    request.onerror = () => {
+        counter++;
+
+        if (counter >= 5) {
+            document.getElementById('warning').innerHTML = "Server not responding. Stopping request";
+            finished = new Boolean(true);
+        }
+    }
+
     await delay(1000);
   }
 

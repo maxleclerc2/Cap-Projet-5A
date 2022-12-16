@@ -29,6 +29,8 @@ from datetime import datetime
 from threading import Thread
 
 import itertools
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib.patches import Ellipse as Ellipse_plt
 import matplotlib.pyplot as plt
 import matplotlib.transforms as transforms

@@ -7,7 +7,6 @@ from __future__ import print_function
 import os
 import urllib.request
 
-import sys
 import time
 import base64
 
@@ -15,13 +14,6 @@ from urllib.parse import urlencode, quote
 from urllib.request import urlopen, Request
 from urllib.error import HTTPError
 from flask import current_app as app
-
-# from exceptions import Exception
-from email.mime.base import MIMEBase
-from email.mime.multipart import MIMEMultipart
-from email.mime.application import MIMEApplication
-
-from email.encoders import encode_noop
 
 import json
 
@@ -261,249 +253,9 @@ class Client(object):
         return result
 
 
-if __name__ == '__main__':
-    print("Running with args %s" % sys.argv)
-    import optparse
-
-    parser = optparse.OptionParser()
-    parser.add_option('--server', dest='server', default=Client.default_url,
-                      help='Set server base URL (eg, %default)')
-    parser.add_option('--apikey', '-k', dest='apikey',
-                      help='API key for Astrometry.net web service; if not given will check AN_API_KEY environment variable')
-    parser.add_option('--upload', '-u', dest='upload', help='Upload a file')
-    parser.add_option('--upload-xy', dest='upload_xy', help='Upload a FITS x,y table as JSON')
-    parser.add_option('--wait', '-w', dest='wait', action='store_true', help='After submitting, monitor job status')
-    parser.add_option('--wcs', dest='wcs',
-                      help='Download resulting wcs.fits file, saving to given filename; implies --wait if --urlupload or --upload')
-    parser.add_option('--newfits', dest='newfits',
-                      help='Download resulting new-image.fits file, saving to given filename; implies --wait if --urlupload or --upload')
-    parser.add_option('--corr', dest='corr',
-                      help='Download resulting corr.fits file, saving to given filename; implies --wait if --urlupload or --upload')
-    parser.add_option('--kmz', dest='kmz',
-                      help='Download resulting kmz file, saving to given filename; implies --wait if --urlupload or --upload')
-    parser.add_option('--annotate', '-a', dest='annotate',
-                      help='store information about annotations in give file, JSON format; implies --wait if --urlupload or --upload')
-    parser.add_option('--urlupload', '-U', dest='upload_url', help='Upload a file at specified url')
-    parser.add_option('--scale-units', dest='scale_units',
-                      choices=('arcsecperpix', 'arcminwidth', 'degwidth', 'focalmm'),
-                      help='Units for scale estimate ("arcsecperpix", "arcminwidth", "degwidth", or "focalmm")')
-    # parser.add_option('--scale-type', dest='scale_type',
-    #                  choices=('ul', 'ev'), help='Scale bounds: lower/upper or estimate/error')
-    parser.add_option('--scale-lower', dest='scale_lower', type=float, help='Scale lower-bound')
-    parser.add_option('--scale-upper', dest='scale_upper', type=float, help='Scale upper-bound')
-    parser.add_option('--scale-est', dest='scale_est', type=float, help='Scale estimate')
-    parser.add_option('--scale-err', dest='scale_err', type=float,
-                      help='Scale estimate error (in PERCENT), eg "10" if you estimate can be off by 10%')
-    parser.add_option('--ra', dest='center_ra', type=float, help='RA center')
-    parser.add_option('--dec', dest='center_dec', type=float, help='Dec center')
-    parser.add_option('--radius', dest='radius', type=float, help='Search radius around RA,Dec center')
-    parser.add_option('--downsample', dest='downsample_factor', type=int, help='Downsample image by this factor')
-    parser.add_option('--positional_error', dest='positional_error', type=float,
-                      help='How many pixels a star may be from where it should be.')
-    parser.add_option('--parity', dest='parity', choices=('0', '1'), help='Parity (flip) of image')
-    parser.add_option('--tweak-order', dest='tweak_order', type=int, help='SIP distortion order (default: 2)')
-    parser.add_option('--crpix-center', dest='crpix_center', action='store_true', default=None,
-                      help='Set reference point to center of image?')
-    parser.add_option('--invert', action='store_true', default=None,
-                      help='Invert image before detecting sources -- for white-sky, black-stars images')
-    parser.add_option('--image-width', type=int, help='Set image width for x,y lists')
-    parser.add_option('--image-height', type=int, help='Set image height for x,y lists')
-    parser.add_option('--album', type=str, help='Add image to album with given title string')
-    parser.add_option('--sdss', dest='sdss_wcs', nargs=2,
-                      help='Plot SDSS image for the given WCS file; write plot to given PNG filename')
-    parser.add_option('--galex', dest='galex_wcs', nargs=2,
-                      help='Plot GALEX image for the given WCS file; write plot to given PNG filename')
-    parser.add_option('--jobid', '-i', dest='solved_id', type=int,
-                      help='retrieve result for jobId instead of submitting new image')
-    parser.add_option('--substatus', '-s', dest='sub_id', help='Get status of a submission')
-    parser.add_option('--jobstatus', '-j', dest='job_id', help='Get status of a job')
-    parser.add_option('--jobs', '-J', dest='myjobs', action='store_true', help='Get all my jobs')
-    parser.add_option('--jobsbyexacttag', '-T', dest='jobs_by_exact_tag',
-                      help='Get a list of jobs associated with a given tag--exact match')
-    parser.add_option('--jobsbytag', '-t', dest='jobs_by_tag', help='Get a list of jobs associated with a given tag')
-    parser.add_option('--private', '-p',
-                      dest='public',
-                      action='store_const',
-                      const='n',
-                      default='n',
-                      help='Hide this submission from other users')
-    parser.add_option('--allow_mod_sa', '-m',
-                      dest='allow_mod',
-                      action='store_const',
-                      const='sa',
-                      default='n',
-                      help='Select license to allow derivative works of submission, but only if shared under same conditions of original license')
-    parser.add_option('--no_mod', '-M',
-                      dest='allow_mod',
-                      action='store_const',
-                      const='n',
-                      default='n',
-                      help='Select license to disallow derivative works of submission')
-    parser.add_option('--no_commercial', '-c',
-                      dest='allow_commercial',
-                      action='store_const',
-                      const='n',
-                      default='n',
-                      help='Select license to disallow commercial use of submission')
-    opt, args = parser.parse_args()
-
-    if opt.apikey is None:
-        # try the environment
-        opt.apikey = os.environ.get('AN_API_KEY', None)
-    if opt.apikey is None:
-        parser.print_help()
-        print()
-        print('You must either specify --apikey or set AN_API_KEY')
-        sys.exit(-1)
-
-    args = {}
-    args['apiurl'] = opt.server
-    c = Client(**args)
-    c.login(opt.apikey)
-
-    if opt.upload or opt.upload_url or opt.upload_xy:
-        if opt.wcs or opt.kmz or opt.newfits or opt.corr or opt.annotate:
-            opt.wait = True
-
-        kwargs = dict(
-            allow_commercial_use=opt.allow_commercial,
-            allow_modifications=opt.allow_mod,
-            publicly_visible=opt.public)
-        if opt.scale_lower and opt.scale_upper:
-            kwargs.update(scale_lower=opt.scale_lower,
-                          scale_upper=opt.scale_upper,
-                          scale_type='ul')
-        elif opt.scale_est and opt.scale_err:
-            kwargs.update(scale_est=opt.scale_est,
-                          scale_err=opt.scale_err,
-                          scale_type='ev')
-        elif opt.scale_lower or opt.scale_upper:
-            kwargs.update(scale_type='ul')
-            if opt.scale_lower:
-                kwargs.update(scale_lower=opt.scale_lower)
-            if opt.scale_upper:
-                kwargs.update(scale_upper=opt.scale_upper)
-
-        for key in ['scale_units', 'center_ra', 'center_dec', 'radius',
-                    'downsample_factor', 'positional_error', 'tweak_order', 'crpix_center',
-                    'album']:
-            if getattr(opt, key) is not None:
-                kwargs[key] = getattr(opt, key)
-        if opt.parity is not None:
-            kwargs.update(parity=int(opt.parity))
-
-        if opt.upload:
-            upres = c.upload(opt.upload, **kwargs)
-        if opt.upload_xy:
-            from astrometry.util.fits import fits_table
-
-            T = fits_table(opt.upload_xy)
-            kwargs.update(x=[float(x) for x in T.x], y=[float(y) for y in T.y])
-            upres = c.upload(**kwargs)
-        if opt.upload_url:
-            upres = c.url_upload(opt.upload_url, **kwargs)
-
-        stat = upres['status']
-        if stat != 'success':
-            print('Upload failed: status', stat)
-            print(upres)
-            sys.exit(-1)
-
-        opt.sub_id = upres['subid']
-
-    if opt.wait:
-        if opt.solved_id is None:
-            if opt.sub_id is None:
-                print("Can't --wait without a submission id or job id!")
-                sys.exit(-1)
-
-            while True:
-                stat = c.sub_status(opt.sub_id, justdict=True)
-                print('Got status:', stat)
-                jobs = stat.get('jobs', [])
-                if len(jobs):
-                    for j in jobs:
-                        if j is not None:
-                            break
-                    if j is not None:
-                        print('Selecting job id', j)
-                        opt.solved_id = j
-                        break
-                time.sleep(5)
-
-        while True:
-            stat = c.job_status(opt.solved_id, justdict=True)
-            print('Got job status:', stat)
-            if stat.get('status', '') in ['success']:
-                success = (stat['status'] == 'success')
-                break
-            elif stat.get('status', '') in ['failure']:
-                print("Image solving failed")
-                sys.exit(-1)
-            time.sleep(5)
-
-    if opt.solved_id:
-        # we have a jobId for retrieving results
-        retrieveurls = []
-        if opt.wcs:
-            # We don't need the API for this, just construct URL
-            url = opt.server.replace('/api/', '/wcs_file/%i' % opt.solved_id)
-            retrieveurls.append((url, opt.wcs))
-        if opt.kmz:
-            url = opt.server.replace('/api/', '/kml_file/%i/' % opt.solved_id)
-            retrieveurls.append((url, opt.kmz))
-        if opt.newfits:
-            url = opt.server.replace('/api/', '/new_fits_file/%i/' % opt.solved_id)
-            retrieveurls.append((url, opt.newfits))
-        if opt.corr:
-            url = opt.server.replace('/api/', '/corr_file/%i' % opt.solved_id)
-            retrieveurls.append((url, opt.corr))
-
-        for url, fn in retrieveurls:
-            print('Retrieving file from', url, 'to', fn)
-            f = urlopen(url)
-            txt = f.read()
-            w = open(fn, 'wb')
-            w.write(txt)
-            w.close()
-            print('Wrote to', fn)
-
-        if opt.annotate:
-            result = c.annotate_data(opt.solved_id)
-            with open(opt.annotate, 'w') as f:
-                f.write(python2json(result))
-
-    if opt.wait:
-        # behaviour as in old implementation
-        opt.sub_id = None
-
-    if opt.sdss_wcs:
-        (wcsfn, outfn) = opt.sdss_wcs
-        c.sdss_plot(outfn, wcsfn)
-    if opt.galex_wcs:
-        (wcsfn, outfn) = opt.galex_wcs
-        c.galex_plot(outfn, wcsfn)
-
-    if opt.sub_id:
-        print(c.sub_status(opt.sub_id))
-    if opt.job_id:
-        print(c.job_status(opt.job_id))
-
-    if opt.jobs_by_tag:
-        tag = opt.jobs_by_tag
-        print(c.jobs_by_tag(tag, None))
-    if opt.jobs_by_exact_tag:
-        tag = opt.jobs_by_exact_tag
-        print(c.jobs_by_tag(tag, 'yes'))
-
-    if opt.myjobs:
-        jobs = c.myjobs()
-        print(jobs)
-
-
 def SubmitAstrometry(saving_folder, filename, file_extension, progress):
     filePath = app.config['UPLOAD_PATH'] + '/' + filename + file_extension
-    saving_path = "app/static/images/astrometry/" + saving_folder + "/" + filename
+    saving_path = "app/static/images/astrometry/" + saving_folder + "/outputs/" + filename
 
     args = {'apiurl': Client.default_url,
             'allow_commercial_use': 'n',
@@ -517,6 +269,7 @@ def SubmitAstrometry(saving_folder, filename, file_extension, progress):
     stat = upres['status']
     if stat != 'success':
         progress.setStatus("error")
+        progress.setCause('Upload to astrometry.net failed: status ', stat)
         #print('Upload failed: status', stat)
         #print(upres)
         return "error"
@@ -548,6 +301,7 @@ def SubmitAstrometry(saving_folder, filename, file_extension, progress):
             break
         elif stat.get('status', '') in ['failure']:
             progress.setStatus("error")
+            progress.setCause("Image solving failed")
             #print("Image solving failed")
             return "error"  # TODO Error handling
         time.sleep(5)
@@ -557,7 +311,9 @@ def SubmitAstrometry(saving_folder, filename, file_extension, progress):
     retrieve_extraction_url = "https://nova.astrometry.net/extraction_image_full/"
 
     os.makedirs(saving_path)
-    os.rename(filePath, saving_path + "/original" + file_extension)
+    move_original_file = "app/static/images/astrometry/" + saving_folder + "/inputs"
+    os.makedirs(move_original_file)
+    os.rename(filePath, move_original_file + "/" + filename + file_extension)
     progress.setStatus("saving red-green pattern file of " + filename)
     urllib.request.urlretrieve(retrieve_red_green_url + jobId, saving_path + "/red-green.png")
     progress.setStatus("saving extraction pattern file of " + filename)

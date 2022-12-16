@@ -10,6 +10,8 @@ import numpy as np
 import cv2
 from skimage import io
 import pandas as pd
+import matplotlib
+matplotlib.use('Agg')
 from matplotlib import pyplot as plt
 from osgeo import gdal, osr
 from math import floor, ceil

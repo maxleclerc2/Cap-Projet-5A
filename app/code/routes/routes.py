@@ -61,8 +61,12 @@ Prediction = None
 
 # KLT Processing progress
 global klt_progress
+klt_progress = ImageProcessingProgress()
+klt_progress.setStatus("error")
 # Astrometry Processing progress
 global astro_progress
+astro_progress = ImageProcessingProgress()
+astro_progress.setStatus("error")
 
 
 # -----------------------------------------------------------------------------
@@ -812,14 +816,16 @@ def klt_processing_submit():
         file_ext = splitext(filename)[1]
         if file_ext not in app.config['UPLOAD_EXTENSIONS']:
             klt_progress.setStatus("error")
+            klt_progress.setCause("File type not accepted")
             abort(400)
         klt_progress.setStatus("file saved")
         uploaded_file.save(join(app.config['UPLOAD_PATH'], filename))
         logging.info('KLT Processing - File saved as ' + filename)
     else:
         klt_progress.setStatus("error")
+        klt_progress.setCause("Unable to save file")
         logging.error('KLT Processing - Unable to save file ' + filename)
-        return jsonify({"response": "pas ok"})
+        return jsonify({"response": "error - not finished"})
 
     klt_progress.setStatus("checking file")
     uploaded_filename, uploaded_file_extension = splitext(filename)
@@ -852,13 +858,15 @@ def klt_processing_submit():
         logging.info('KLT Processing - Finished extracting ZIP file')
     else:
         klt_progress.setStatus("error")
+        klt_progress.setCause("Not a ZIP file")
         logging.warning('KLT Processing - Single image to process')
-        return jsonify({"response": "pas ok"})
+        return jsonify({"response": "error - not finished"})
 
     if len(files) < 2:
         klt_progress.setStatus("error")
+        klt_progress.setCause("Not enough images")
         logging.error('KLT Processing - Not enough images to process')
-        return jsonify({"response": "pas ok :("})
+        return jsonify({"response": "error - not finished"})
 
     saving_folder = str(datetime.datetime.now()).replace(" ", "_").replace(":", "-")
 
@@ -869,8 +877,9 @@ def klt_processing_submit():
         logging.info('KLT Processing - Processing ' + splitext(file1)[0] + ' and ' + splitext(file2)[0] + ' files')
         names.append(splitext(file1)[0] + "_" + splitext(file2)[0])
 
-        saving_path = "app/static/images/klt/" + saving_folder + "/" + splitext(file1)[0] + "_" + splitext(file2)[
-            0] + "/"
+        saving_path = "app/static/images/klt/" + saving_folder + "/outputs/" + splitext(file1)[0] + "_" + \
+                      splitext(file2)[
+                          0] + "/"
         os.makedirs(saving_path)
 
         args = Namespace(mon=file1,
@@ -885,19 +894,20 @@ def klt_processing_submit():
             conf = Configuration(args)
         except ConfigurationError as e:
             klt_progress.setStatus("error")
-            return jsonify({"response": "pas ok :("})
+            klt_progress.setCause("Unable to load configuration file")
+            return jsonify({"response": "error - not finished"})
 
         try:
             # run matcher :
             match(args.mon, args.ref, conf, args.resume, args.mask)
         except Exception as e:
             klt_progress.setStatus("cannot process " + splitext(file1)[0] + " and " + splitext(file2)[0])
+            klt_progress.setCause("Cannot process file " + splitext(file1)[0] + " and " + splitext(file2)[0])
             logging.error(
                 'KLT Processing - Error while processing ' + splitext(file1)[0] + ' and ' + splitext(file2)[0])
             logging.error(e)
             with open(saving_path + "README.txt", 'w') as f:
                 f.write("Unable to finnish processing of " + splitext(file1)[0] + " and " + splitext(file2)[0])
-            continue
     else:
         names.append(files[len(files) - 1])
 
@@ -919,7 +929,8 @@ def klt_processing_submit():
 def check_klt_progress():
     global klt_progress
     status = klt_progress.getStatus()
-    return jsonify({"status": status})
+    cause = klt_progress.getCause()
+    return jsonify({"status": status, "cause": cause})
 
 
 # Astrometry.net main page
@@ -947,14 +958,16 @@ def astrometry_processing_submit():
         file_ext = splitext(filename)[1]
         if file_ext not in app.config['UPLOAD_EXTENSIONS']:
             astro_progress.setStatus("error")
+            astro_progress.setCause("File type not accepted")
             abort(400)
         astro_progress.setStatus("file saved")
         uploaded_file.save(join(app.config['UPLOAD_PATH'], filename))
         logging.info('Astrometry Processing - File saved as ' + filename)
     else:
         astro_progress.setStatus("error")
+        astro_progress.setCause("Unable to save file")
         logging.error('Astrometry Processing - Unable to save file ' + filename)
-        return jsonify({"response": "pas ok"})
+        return jsonify({"response": "error - not finished"})
 
     astro_progress.setStatus("checking file")
     uploaded_filename, uploaded_file_extension = splitext(filename)
@@ -990,14 +1003,16 @@ def astrometry_processing_submit():
         logging.info('Astrometry Processing - Single image to process')
         if uploaded_file_extension not in app.config['IMAGES_EXTENSIONS']:
             astro_progress.setStatus("error")
+            astro_progress.setCause("Uploaded file is not an image")
             logging.error('Astrometry Processing - File ' + filename + ' is not an image')
-            return jsonify({"response": "pas ok :("})
+            return jsonify({"response": "error - not finished"})
         files.append(filename)
 
     if len(files) == 0:
         astro_progress.setStatus("error")
+        astro_progress.setCause("No image to process")
         logging.error('Astrometry Processing - No image to process')
-        return jsonify({"response": "pas ok :("})
+        return jsonify({"response": "error - not finished"})
     saving_folder = str(datetime.datetime.now()).replace(" ", "_").replace(":", "-")
 
     first_file_ext = ""
@@ -1013,24 +1028,28 @@ def astrometry_processing_submit():
         except Exception as e:
             logging.error(e)
             astro_progress.setStatus("error")
+            astro_progress.setCause("Error with astrometry.net")
             logging.error('Astrometry Processing - Error with astrometry.net')
-            return jsonify({"response": "pas ok :("})
+            return jsonify({"response": "error - not finished"})
         if output.__eq__("error"):
             astro_progress.setStatus("error")
+            astro_progress.setCause("Unable to process file " + filename + " with astrometry.net")
             logging.error('Astrometry Processing - Unable to process the image ' + filename + ' with astrometry.net')
-            return jsonify({"response": "pas ok :("})
+            return jsonify({"response": "error - not finished"})
 
         try:
             result = RemoveGreenStars(saving_folder, name, extension, astro_progress)
         except Exception as e:
             logging.error(e)
             astro_progress.setStatus("error")
+            astro_progress.setCause("Error while removing stars from image " + filename)
             logging.error('Astrometry Processing - Error while removing stars for the image ' + filename)
-            return jsonify({"response": "pas ok :("})
+            return jsonify({"response": "error - not finished"})
         if result.__eq__("nok"):
             astro_progress.setStatus("error")
+            astro_progress.setCause("Error while preprocessing image " + filename)
             logging.error('Astrometry Processing - Error while creating the mask for the image ' + filename)
-            return jsonify({"response": "pas ok :("})
+            return jsonify({"response": "error - not finished"})
 
         astro_progress.setStatus(filename + " complete")
         logging.info('Astrometry Processing - ' + filename + ' complete')
@@ -1045,7 +1064,8 @@ def astrometry_processing_submit():
 def check_astrometry_progress():
     global astro_progress
     status = astro_progress.getStatus()
-    return jsonify({"status": status})
+    cause = astro_progress.getCause()
+    return jsonify({"status": status, "cause": cause})
 
 
 # Space weather

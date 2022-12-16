@@ -66,7 +66,6 @@ class SpotRemover:
            The base file name without the file extension.
        """
         base_file_name, file_extension = os.path.splitext(self.raw_image_path)
-        # base_file_name_no_ext = base_file_name[: -len(file_extension)]
         return base_file_name
 
     def save(self, saving_path: str, output_file: object, extension: str) -> None:
@@ -141,25 +140,6 @@ class SpotRemover:
         return mask
 
 
-"""
-def remove_red_circles(img):
-    for x in range(img.shape[0]):
-        for y in range(img.shape[1]):
-            # Get the BGR values for the current pixel
-            b, g, r = img[x, y]
-
-            # If the pixel is green (i.e. the green value is greater than the red and blue values), set its value to 0
-            if r > g and r > b:
-                img[x, y] = (0, 0, 0)
-
-            # for residuals blue spots after invert
-            #if b > g and b > g:
-            #    img[x, y] = (0, 0, 0)
-
-    return img
-"""
-
-
 @njit(parallel=True)
 def set_mask(mask, img):
     for x in prange(img.shape[0]):
@@ -179,29 +159,6 @@ def rm_green_spot(images_path, image_file_name, raw_img_name):
     new_img = cv2.bitwise_and(img, mask)
     # cv2.imwrite("mask.png", mask)
     # cv2.imwrite("new_img.png", new_img)
-
-    """
-    kernel = np.ones((50, 50), np.uint8)
-    invert_img_dilation = ~cv2.dilate(
-        new_img, kernel, iterations=1
-    )  # cv2.morphologyEx(new_img, cv2.MORPH_GRADIENT, kernel)
-
-    cv2.imwrite("invert_img_dilation.png", invert_img_dilation)
-    kernel2 = np.ones((10, 10), np.uint8)
-    img_dilation = cv2.erode(invert_img_dilation, kernel2, iterations=1)
-    # cv2.imwrite("img_dilation.png", img_dilation)
-
-    bg = cv2.imread(raw_img) # background image.
-    bg = cv2.cvtColor(bg, cv2.COLOR_BGR2RGB)
-
-    fuz = cv2.bitwise_and(bg, img_dilation)
-
-    cv2.imwrite("OUTPUT_IMAGE_BEFORE_POST_CLEANING.png", fuz)
-    fuz_without_red_circles = remove_red_circles(fuz)
-
-    # Save the new image in TIFF format
-    cv2.imwrite("OUTPUT_IMAGE.png", fuz_without_red_circles)
-    """
 
     bg = cv2.imread(raw_img)  # background image.
     bg = cv2.cvtColor(bg, cv2.COLOR_BGR2RGB)
@@ -237,34 +194,13 @@ def rm_green_spot(images_path, image_file_name, raw_img_name):
     cv2.imwrite(images_path + "result.png", result)
 
 
-"""
-if __name__ == "__main__":
-
-    new_object = SpotRemover(
-        green_red_image_path="7295761_extracted.png",
-        original_image_path="kaEC6_-_modified.jpg",
-        mask_type="red",
-    )
-
-    print("Preprocessing")
-    file = new_object.merge_mask_and_orignal_image()
-    new_object.save(file, "PNG")
-    # new_object.save_to_tiff(file)
-    #remove_green_pixels2("7295761_red_green.png", "kaEC6_-_modified.jpg")
-
-    print("Final process")
-    #Build_MASK("7295761_red_green.png")
-    rm_green_spot("7295761_red_green.png", "preprocessing.PNG")  # TODO ici
-    #remove_green_pixels("7295761_red_green.png")
-"""
-
-
 def RemoveGreenStars(saving_folder, name, extension, progress):
-    imagesPath = "app/static/images/astrometry/" + saving_folder + "/" + name + "/"
+    originalPath = "app/static/images/astrometry/" + saving_folder + "/inputs/"
+    imagesPath = "app/static/images/astrometry/" + saving_folder + "/outputs/" + name + "/"
 
     remover = SpotRemover(
         green_red_image_path=imagesPath + "extraction.png",
-        original_image_path=imagesPath + "original" + extension,
+        original_image_path=originalPath + name + extension,
         mask_type="red"
     )
 
